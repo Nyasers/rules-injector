@@ -5,9 +5,11 @@
   "type": "module",
   "description": "构建工具声明（发版只 bump manifest.json version，本字段仅 npm 语义占位，不参与版本判断）",
   "scripts": {
-    "build": "node scripts/build-release.mjs"
+    "build": "node scripts/build.mjs",
+    "pack": "node scripts/pack.mjs"
   },
   "devDependencies": {
+    "@rspack/core": "^1.3.0",
     "archiver": "^8.0.0"
   }
 }

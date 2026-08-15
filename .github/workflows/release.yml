@@ -15,19 +15,21 @@
 #
 # 与 dsh-hanako 的差异（裁剪依据）:
 #   - 构建工具链统一 Node（与插件本体、姊妹插件 dsh-hanako 同一工具栈）：
-#     .nvmrc 钉 Node 24.18.0（setup-node node-version-file），构建期只装 archiver
-#     一个 devDependency（npm ci），打包脚本 scripts/build-release.mjs 用 archiver
-#     纯 Node 生成 zip（含 PK 头/EOCD，防 tar 伪 zip）；交付物零依赖由固定清单
+#     .nvmrc 钉 Node 24.18.0（setup-node node-version-file），构建期装 @rspack/core +
+#     archiver 两个 devDependency（npm ci），两步构建：scripts/build.mjs rspack bundle
+#     （5 入口压缩，lib/ 内联进 bundle）+ scripts/pack.mjs archiver 纯 Node 生成 zip
+#     （含 PK 头/EOCD，防 tar 伪 zip）+ sha256；交付物零依赖由固定清单
 #     PACKAGE_FILES 保证——package.json / package-lock.json / node_modules 不进包
-#   - 版本单一事实源 = manifest.json version（build-release.mjs 读它，不读 package.json；
+#   - 版本单一事实源 = manifest.json version（pack.mjs 读它，不读 package.json；
 #     package.json 的 version 仅 npm 语义占位、不参与版本判断）；资产命名版本段无
 #     v 前缀（rules-injector-0.9.4.zip），tag 是 v0.9.4 → verify 匹配资产名时必须把
 #     tag 去 v（bash ${TAG#v}）再拼 rules-injector-<ver>.zip，与 dsh-hanako（资产名带
 #     v 直接拼 tag）不同；顺带焊死版本单一事实源：manifest version 与 tag 不一致
 #     （漏改版本就发版）时资产名对不上，verify fail
-#   - 无 rspack 构建环节 → build job 只做「checkout → setup-node → npm ci →
-#     npm run build（打包）→ 上传」，无 RSPACK_ENV 式独立构建环境（那套是
-#     dsh-hanako 为 rspack 大依赖设计的，本项目构建期仅 archiver 一个包）
+#   - rspack 构建在项目内 npm ci 即可（构建期仅 @rspack/core + archiver 两个包），
+#     无 RSPACK_ENV 式独立构建环境（那套是 dsh-hanako 为 rspack 大依赖设计的）；
+#     build job 做「checkout → setup-node → npm ci → npm run pack（rspack bundle +
+#     archiver 打包两步）→ 上传」
 
 name: Release
 
@@ -79,8 +81,9 @@ jobs:
       - uses: actions/checkout@v5
 
       # 构建工具链统一 Node：.nvmrc 钉 Node 24.18.0（对齐 dsh-hanako），npm ci
-      # 只装 archiver 一个 devDependency（构建契约）；交付物零依赖由固定清单
-      # PACKAGE_FILES 保证（package.json/lock/node_modules 不进包）
+      # 装 @rspack/core + archiver 两个 devDependency（构建契约）；npm run pack =
+      # rspack bundle（build.mjs）→ archiver 打包（pack.mjs）两步；交付物零依赖由
+      # 固定清单 PACKAGE_FILES 保证（package.json/lock/node_modules 不进包，lib/ 内联）
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -89,8 +92,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 两步构建 + 打包：npm run pack 内部先调 node scripts/build.mjs（rspack bundle 产物
+      # dist/）再 archiver zip + sha256（releases/），与 dsh-hanako pack.mjs 一致
       - name: Package
-        run: npm run build
+        run: npm run pack
 
       # tag 场景直传 zip + sha256 到 release（--clobber 幂等，重复推送/补传不报错）。
       # dispatch 手动场景无 tag 无 release，本步跳过，产物仍走下方 artifact 3 天窗口

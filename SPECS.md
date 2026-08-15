@@ -18,6 +18,7 @@
 - [option-card-busy-retry] /card/choose 补 session_busy 自动重试（2s/5s/10s，零落盘不变） — (2026-08-13)
 - [release-build-script] 打包流程脚本化：scripts/build-release.py 一键打包 + 自校验 — (2026-08-13)
 - [build-toolchain-node] 打包工具链 Python → Node 统一：build-release.py / verify-zip.py 删除，改 archiver 纯 Node zip（scripts/build-release.mjs）+ verify-zip.mjs 三重校验 + CI setup-node（.nvmrc 24.18.0，npm ci），交付清单 PACKAGE_FILES 不变、构建工具不进交付包 — (2026-08-13)
+- [rspack-bundle-build] 打包工具链升级 rspack bundle 两步构建（scripts/build.mjs + scripts/pack.mjs，对齐 dsh-hanako build.mjs + pack.mjs）：5 入口（index / routes/card / routes/sidebar / tools/option-card / cli）rspack 压缩为 ESM bundle（library type module 保持具名导出，usedExports/sideEffects 关闭防摇空，import.meta.url 静态化后处理复刻）；lib/ 内联进 bundle 不再单独交付，交付清单 13 项；build-release.mjs 删除（zip/sha256/原子写/自校验逻辑并入 pack.mjs）；版本单一事实源仍为 manifest.json — (2026-08-15)
 
 ## Superseded
 （暂无）

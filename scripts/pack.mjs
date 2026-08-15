@@ -1,45 +1,40 @@
-#!/usr/bin/env node
-// scripts/build-release.mjs — rules-injector 发布打包（Node 版，替代 build-release.py）
-//
-// 用法:
-//   node scripts/build-release.mjs            # 打包 releases/rules-injector-<version>.zip + .sha256
-//   node scripts/build-release.mjs --force    # 覆盖已存在的同版本包
-//
-// 行为:
-//   1. 读 manifest.json 的 version（版本单一事实源：发版只 bump manifest.json，
-//      package.json 的 version 仅 npm 语义占位、不参与版本判断）
-//   2. 按 PACKAGE_FILES 固定清单打包（archiver 纯 Node zip，zip 内 posix 相对路径、
-//      无外层目录；不用系统 tar——GNU tar 不认 .zip 后缀会静默产出 tar 伪 zip）
-//   3. 自校验：重开 zip 核对 namelist 与清单一致、包内 manifest version 与源一致
-//   4. 原子写：zip 与 .sha256 都先写临时文件再 rename 落位（中断不留半成品）
-//   5. 产出 .sha256：与 zip 同名成对（hex 大写摘要、无尾换行，对齐 dsh-hanako pack.mjs 惯例）
-import { createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { createHash } from "node:crypto";
-import { dirname, join } from "node:path";
+// scripts/pack.mjs — rules-injector 发布打包（rspack bundle + archiver，对齐姊妹插件
+// dsh-hanako scripts/pack.mjs 的两步结构：build（rspack）→ 静态项复制 → 铺平 → zip → SHA256）
+// 版本单一事实源 = manifest.json version（发版只 bump manifest.json；package.json 的
+// version 仅 npm 语义占位、不参与版本判断）——与 dsh-hanako（package.json 管版本）相反。
+// 交付物 = 代码 bundle（dist/，lib/ 已内联进 bundle）+ manifest + README + skills + rules，
+// 零依赖（package.json / package-lock.json / node_modules 一律不进包，构建工具只作声明）。
+// 用法：
+//   node scripts/pack.mjs            # 打包 releases/rules-injector-<version>.zip + .sha256
+//   node scripts/pack.mjs --force    # 覆盖已存在的同版本包
+// 产出：releases/rules-injector-<version>.zip + .sha256（发布产物）；铺平目录 _tmp/pkg/（zip
+// 中间原料，可清空）。zip 内 posix 相对路径、无外层目录（保持既有形态），打包后自校验
+// 包内文件清单与 version 一致才认成功；原子写（tmp + rename、点前缀临时文件）。
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import { cpSync, createWriteStream, existsSync, mkdirSync, renameSync, rmSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { inflateRawSync } from "node:zlib";
 import { ZipArchive } from "archiver";
 
+const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const RELEASES_DIR = join(ROOT, "releases");
 
-// 发布包内容清单（0.8.0 起：RULES.md 废弃 → rules/ 种子目录 + lib/ 模块）
-// 0.8.6：种子移除「规则管理规则.md」（拆分废弃，职责拆入开发文档与行为约束）
-// 0.9.2：规则管理逻辑收敛进 skills/rules-manager/bin/cli.mjs（单一脚本，复用插件根 lib/rules-fs.js）；tools/ 仅注册工具（option-card + shared）
-// 0.9.4：cli.mjs 上移至插件根与 lib 同层（import ./lib/rules-fs.js，消除跨层路径）；skills/rules-manager/ 仅剩 SKILL.md
+// 交付物固定清单（build 产物 + 静态项；0.9.4 起 rspack bundle 构建：lib/ 内联进各入口
+// bundle 不再单独交付，skills/rules-manager/ 仅剩 SKILL.md，rules/ 5 个种子，共 13 项）
 // 注意：package.json / package-lock.json / node_modules 一律不进包——构建工具只作声明，
 // 插件交付物保持零依赖，交付清单由本固定清单唯一决定。
 const PACKAGE_FILES = [
+  "index.js",
+  "cli.mjs",
   "routes/card.js",
   "routes/sidebar.js",
   "tools/option-card.js",
-  "index.js",
-  "cli.mjs",
   "manifest.json",
   "README.md",
-  "lib/db.js",
-  "lib/migrate.js",
-  "lib/rules-fs.js",
   "skills/rules-manager/SKILL.md",
   "rules/卡片收尾规则.md",
   "rules/中文思考规则.md",
@@ -47,6 +42,9 @@ const PACKAGE_FILES = [
   "rules/选项卡片规则.md",
   "rules/临时文件规范.md",
 ];
+
+// build 产物之外的静态项（复制进 dist 交付目录；dist 即完整交付目录）
+const STATIC_ITEMS = ["manifest.json", "README.md", "skills", "rules"];
 
 const EOCD_SIG = Buffer.from([0x50, 0x4b, 0x05, 0x06]);
 
@@ -104,9 +102,13 @@ function readZipEntry(buf, entryName) {
   throw new Error(`zip 中找不到 ${entryName}`);
 }
 
+// fail：打印错误、置非零退出码并抛异常（经 finally 清理临时文件后由顶层 catch 收口）
 function fail(msg) {
   console.error(`[error] ${msg}`);
   process.exitCode = 1;
+  const e = new Error(msg);
+  e.isFail = true;
+  throw e;
 }
 
 async function main() {
@@ -115,42 +117,49 @@ async function main() {
     manifest = JSON.parse(readFileSync(join(ROOT, "manifest.json"), "utf8"));
   } catch (e) {
     fail(`manifest.json 读取失败: ${e.message}`);
-    return;
   }
   const version = manifest.version;
-  if (typeof version !== "string" || !version) {
-    fail("manifest.json 缺少有效 version 字段");
-    return;
-  }
+  if (typeof version !== "string" || !version) fail("manifest.json 缺少有效 version 字段");
 
   const out = join(RELEASES_DIR, `rules-injector-${version}.zip`);
   const shaOut = `${out}.sha256`;
-
-  // 先确认清单齐全再查目标冲突：报错信息更准确（缺失优先于已存在）
-  const missing = PACKAGE_FILES.filter((f) => !existsSync(join(ROOT, f)));
-  if (missing.length > 0) {
-    fail(`清单文件缺失: ${missing.join(", ")}`);
-    return;
-  }
-
   const force = process.argv.includes("--force");
-  if (existsSync(out) && !force) {
-    fail(`${out} 已存在，加 --force 覆盖（或先 bump 版本）`);
-    return;
+  if (existsSync(out) && !force) fail(`${out} 已存在，加 --force 覆盖（或先 bump 版本）`);
+
+  // 1. 构建 bundle（rspack，产物 dist/）
+  console.log("[pack] build...");
+  execFileSync(process.execPath, [join(ROOT, "scripts", "build.mjs")], {
+    cwd: ROOT,
+    stdio: "inherit",
+    env: { ...process.env, RSPACK_ENV: process.env.RSPACK_ENV || "" },
+  });
+
+  // 2. 静态项复制进 dist —— dist 即完整交付目录（bundle + manifest + README + skills +
+  //    rules），包根结构 = 标准插件形态（根 index.js + cli.mjs + routes/ + tools/，
+  //    无 dist 这层目录）
+  const distDir = join(ROOT, "dist");
+  for (const item of STATIC_ITEMS) {
+    const src = join(ROOT, item);
+    if (!existsSync(src)) fail(`静态项不存在：${item}`);
+    cpSync(src, join(distDir, item), { recursive: true });
   }
+  const missing = PACKAGE_FILES.filter((f) => !existsSync(join(distDir, f)));
+  if (missing.length > 0) fail(`清单文件缺失: ${missing.join(", ")}`);
 
+  // 3. dist → 铺平目录（zip 中间原料，放 _tmp 可随时清空）
+  const pkgDir = join(ROOT, "_tmp", "pkg", `rules-injector-v${version}`);
+  rmSync(pkgDir, { recursive: true, force: true });
+  cpSync(distDir, pkgDir, { recursive: true });
+
+  // 4. zip + SHA256（发布产物归档 releases/，与项目群惯例一致）
+  //    archiver 纯 Node 跨平台 zip（对齐 dsh-hanako）：不用 tar -a -cf——GNU tar（Linux）
+  //    不认 .zip 后缀会静默产出 tar 伪 zip（CI ubuntu 踩坑 2026-08-14，安装端报
+  //    end of central directory record signature not found）
   mkdirSync(RELEASES_DIR, { recursive: true });
-
-  // 原子写：先写临时文件再 rename 落位，中断不留半成品（对齐 dsh-hanako pack.mjs
-  // 的 .tmp 惯例）。临时文件点前缀开头，不会被 CI upload 的
-  // releases/rules-injector-*.zip* 通配误收。
-  const tmpZip = join(RELEASES_DIR, `.rules-injector-${version}.zip.tmp`);
+  const tmpZip = join(RELEASES_DIR, `.rules-injector-${version}.zip.tmp`); // 点前缀临时文件
   const tmpSha = `${tmpZip}.sha256.tmp`;
 
   try {
-    // archiver 纯 Node zip：跨平台真 zip（含 PK 头/EOCD），不用 tar -a -cf——
-    // GNU tar（Linux）不认 .zip 后缀会静默产出 tar 伪 zip，安装端报
-    // "end of central directory record signature not found"
     const output = createWriteStream(tmpZip);
     const archive = new ZipArchive({ zlib: { level: 9 } });
     const done = new Promise((resolve, reject) => {
@@ -159,8 +168,10 @@ async function main() {
       archive.on("error", reject);
     });
     archive.pipe(output);
+    // zip 根 = 交付物根（无外层目录，zip 内 posix 相对路径，保持既有形态）；按固定清单
+    // 逐文件归档（archive.directory() 会额外写入零长度目录条目，清单自校验会失败）
     for (const f of PACKAGE_FILES) {
-      archive.file(join(ROOT, f), { name: f }); // name 强制 posix 相对路径、无外层目录
+      archive.file(join(pkgDir, f), { name: f }); // name 强制 posix 相对路径
     }
     await archive.finalize();
     await done;
@@ -172,25 +183,19 @@ async function main() {
       names = listZipEntries(buf);
     } catch (e) {
       fail(`自校验失败: ${e.message}`);
-      return;
     }
     // archiver 按条目名排序归档（确定性、跨平台稳定），清单比对按集合一致判断、
-    // 不依赖条目顺序（Python zipfile 版保留插入序，Node 版以确定性排序替代）
+    // 不依赖条目顺序
     if (names.length !== PACKAGE_FILES.length || [...names].sort().join("\0") !== [...PACKAGE_FILES].sort().join("\0")) {
       fail("自校验失败: 包内文件清单与 PACKAGE_FILES 不符");
-      return;
     }
     let vm;
     try {
       vm = JSON.parse(readZipEntry(buf, "manifest.json").toString("utf8")).version;
     } catch (e) {
       fail(`自校验失败: 包内 manifest.json 无法读取（${e.message}）`);
-      return;
     }
-    if (vm !== version) {
-      fail(`自校验失败: 包内 manifest version=${vm} != 源 ${version}`);
-      return;
-    }
+    if (vm !== version) fail(`自校验失败: 包内 manifest version=${vm} != 源 ${version}`);
 
     // sha256 摘要（hex 大写、无尾换行）：与 zip 同名成对产出，发布资产 zip + sha256 成对
     const sha = createHash("sha256").update(buf).digest("hex").toUpperCase();
@@ -214,4 +219,11 @@ async function main() {
   }
 }
 
-await main();
+try {
+  await main();
+} catch (e) {
+  if (!e?.isFail) {
+    console.error(`[error] ${e?.stack ?? e}`);
+    process.exitCode = 1;
+  }
+}

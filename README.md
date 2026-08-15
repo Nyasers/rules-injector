@@ -40,15 +40,17 @@ deferred 投递的 `meta.deliveryIntent` 决定走哪条通道，三种策略各
 
 ## 构建与发版
 
-**构建**（工具链统一 Node，对齐姊妹插件 dsh-hanako：archiver 纯 Node 生成 zip，zip + sha256 成对产出；构建期只依赖 archiver 一个 devDependency，交付物零依赖由固定清单保证）：
+**构建**（工具链统一 Node，对齐姊妹插件 dsh-hanako：rspack bundle 两步构建 + archiver 纯 Node 生成 zip，zip + sha256 成对产出；构建期依赖 @rspack/core + archiver 两个 devDependency，交付物零依赖由固定清单保证）：
 
 ```bash
-npm ci                  # 安装构建工具（仅 archiver；首次可 npm install 生成 package-lock.json）
-npm run build           # = node scripts/build-release.mjs，产出 releases/rules-injector-<ver>.zip + .sha256
-npm run build -- --force  # 覆盖已存在的同版本包
+npm ci                   # 安装构建工具（@rspack/core + archiver；首次可 npm install 生成 package-lock.json）
+npm run build            # = node scripts/build.mjs：rspack bundle，5 入口（index/routes/card/routes/sidebar/tools/option-card/cli）压缩为 ESM bundle，产物 dist/
+npm run pack             # = node scripts/pack.mjs（内部先调 build）→ archiver 打包 releases/rules-injector-<ver>.zip + .sha256
+npm run pack -- --force  # 覆盖已存在的同版本包
 ```
 
 - 版本单一事实源 = `manifest.json` 的 `version`（发版只 bump manifest.json，`package.json` 的 version 仅作 npm 语义占位、不参与版本判断）；按 `PACKAGE_FILES` 固定清单打包（zip 内 posix 相对路径、无外层目录），打包后自校验清单与 version 一致才认成功。
+- 交付物为 rspack 压缩 bundle：`lib/` 模块被各入口 import 内联进 bundle、不再单独交付（交付清单 13 项：index.js + cli.mjs + routes/×2 + tools/option-card.js + skills/ + rules/×5 + manifest.json + README.md）；`import.meta.url` 静态化后处理复刻 dsh-hanako（分发后路径仍指向实际安装位置）。
 - 原子写：zip 与 `.sha256` 都先写临时文件再 rename 落位，中断不留半成品；`.sha256` 与 zip 同名成对产出（hex 大写摘要）。历史 `releases/` 旧包不补 sha256，只对新包生效。
 - 构建工具不进交付包：`package.json` / `package-lock.json` / `node_modules` 不在 `PACKAGE_FILES` 清单内，插件交付物保持零依赖。
 
@@ -62,7 +64,7 @@ node scripts/verify-zip.mjs releases/rules-injector-<ver>.zip releases/rules-inj
 
 1. bump `manifest.json` 的 `version`（如 0.9.4 → 0.9.5），同时更新 README「版本历史」
 2. `git commit` → `git tag v0.9.5` → `git push origin v0.9.5`
-3. CI 自动建 pre-release（`--generate-notes`，已存在则跳过）→ `npm ci` + `npm run build` 打包并上传 `rules-injector-0.9.5.zip` + `.sha256`（`--clobber` 幂等）→ verify 查资产齐全 + 三重校验，缺任一即删 release 并 fail（公开 release 不留残缺）
+3. CI 自动建 pre-release（`--generate-notes`，已存在则跳过）→ `npm ci` + `npm run pack` 打包并上传 `rules-injector-0.9.5.zip` + `.sha256`（`--clobber` 幂等）→ verify 查资产齐全 + 三重校验，缺任一即删 release 并 fail（公开 release 不留残缺）
 
 > 资产名版本段无 v 前缀（`rules-injector-0.9.5.zip`，tag 是 `v0.9.5`）：CI verify 用 `${TAG#v}` 去 v 后拼资产名精确匹配，manifest version 与 tag 不一致会直接 verify fail（焊死版本单一事实源）。手动触发 `workflow_dispatch`（无 tag）只打包并走 artifact 3 天窗口，不出 release。
 
