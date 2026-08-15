@@ -1,0 +1,156 @@
+# Release — Linux 单平台构建 + 直传 release 资产
+# 骨架对齐姊妹插件 dsh-hanako .github/workflows/release.yml（三段式：
+# create-release → build → verify），按 rules-injector 交付物本质裁剪，差异见下。
+#
+# 触发: push tag v*（发版打 tag 后自动触发）或手动 workflow_dispatch
+#
+# 三段式设计（继承 dsh-hanako 骨架）:
+#   - create-release（仅 tag 场景）: 先建 pre-release（已存在则跳过，--generate-notes）
+#   - build（needs create-release）: ubuntu 单平台打包，tag 场景直传 zip + sha256
+#     （--clobber 幂等）；dispatch 手动场景无 tag 无 release，
+#     产物走 upload-artifact 3 天窗口给人下载
+#   - verify（仅 tag 场景, needs [create-release, build]）: 单点收尾查 release
+#     资产 zip + sha256 齐全且为真 zip（python 校验魔数/EOCD/sha256，
+#     见 scripts/verify-zip.py），缺则删 release 并 fail（公开 release 不留残缺）
+#
+# 与 dsh-hanako 的差异（裁剪依据）:
+#   - rules-injector 刻意零依赖：无 package.json / node_modules，纯 Node ESM 源码
+#     （index.js + cli.mjs + lib/ + routes/ + tools/ + skills/ + rules/），
+#     打包用 Python 脚本 scripts/build-release.py（zipfile 标准库，无第三方依赖）
+#     → build/verify 不需要 setup-node，ubuntu runner 自带 python3，直接跑
+#   - 版本单一事实源 = manifest.json version（build-release.py 读它，不读 package.json）；
+#     资产命名版本段无 v 前缀（rules-injector-0.9.4.zip），tag 是 v0.9.4 →
+#     verify 匹配资产名时必须把 tag 去 v（bash ${TAG#v}）再拼 rules-injector-<ver>.zip，
+#     与 dsh-hanako（资产名带 v 直接拼 tag）不同；顺带焊死版本单一事实源：
+#     manifest version 与 tag 不一致（漏改版本就发版）时资产名对不上，verify fail
+#   - 无 rspack/npm 构建环节 → build job 只做「checkout → python3 打包 → 上传」
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  # 先建 release（仅 tag 场景）: build needs 它，保证上传时 release 必已存在。
+  # dispatch 手动场景无 tag，本 job 被 if 跳过，build 照常跑（只产 artifact）。
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # 自动发布为 pre-release（不占 latest 标记，稳定版本手动标记）；已存在则跳过
+      - name: Create pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            echo "Release ${{ github.ref_name }} already exists, skipping create"
+          else
+            gh release create "${{ github.ref_name }}" \
+              --prerelease \
+              --title "${{ github.ref_name }}" \
+              --generate-notes
+          fi
+
+  build:
+    needs: create-release
+    # create-release 仅在 tag 场景运行，dispatch 场景会被 skip；被 needs 的 job skip 会让
+    # 下游默认 if(success()) 一起 skip → 这里显式放行「非 failure」结果：
+    # success（tag）/ skipped（dispatch）都继续构建，create-release 真失败则不浪费构建
+    if: ${{ needs.create-release.result != 'failure' }}
+    runs-on: ubuntu-latest
+    # tag 场景 gh release upload 需要写权限
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # 零依赖插件：无 npm 栈，ubuntu runner 自带 python3，无需 setup-node/setup-python
+      # （build-release.py 只 import 标准库 argparse/hashlib/json/pathlib/sys/zipfile）
+      - name: Package
+        run: python3 scripts/build-release.py
+
+      # tag 场景直传 zip + sha256 到 release（--clobber 幂等，重复推送/补传不报错）。
+      # dispatch 手动场景无 tag 无 release，本步跳过，产物仍走下方 artifact 3 天窗口
+      - name: Upload release assets (tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          cd releases
+          ZIP=$(ls rules-injector-*.zip | head -1)
+          [ -n "$ZIP" ] || { echo "::error::no package zip found in releases/"; exit 1; }
+          gh release upload "${{ github.ref_name }}" "$ZIP" "$ZIP.sha256" --clobber
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: rules-injector
+          retention-days: 3
+          path: releases/rules-injector-*.zip*
+          if-no-files-found: error
+
+  # 单点收尾（仅 tag 场景）: 查 release 资产 zip + sha256 齐全且为真 zip（python 校验
+  # 魔数/EOCD/sha256，见 scripts/verify-zip.py），缺则删 release 并 fail
+  # （build 失败也进 verify → 资产不全即删 release，公开 release 不留残缺；
+  #   create-release 失败时跳过，失败已由它自己报出，避免二次误报）
+  verify:
+    needs: [create-release, build]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && needs.create-release.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # 硬约束：zip + sha256 必须齐全，缺一个 CI fail（draft 留给人手动检查）。
+      # 直接查 release 资产（gh release view --json assets），无需 download-artifact。
+      # 资产名精确匹配（-x 全行 + -F 固定字符串）：rules-injector 的 zip 名版本段
+      # 无 v 前缀（build-release.py 产 rules-injector-<ver>.zip，ver=manifest.json
+      # version，tag 是 v<ver>）→ 先把 tag 去 v（${TAG#v}）再拼资产名，与 dsh-hanako
+      # （资产名带 v 直接拼 tag）不同；顺带焊死版本单一事实源：manifest version 与
+      # tag 不一致（漏改版本就发版）时资产名对不上，verify fail
+      - name: Verify release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="${{ github.ref_name }}"
+          VER="${TAG#v}"
+          ASSETS=$(gh release view "${{ github.ref_name }}" --json assets --jq '.assets[].name')
+          echo "=== Release assets ==="
+          echo "$ASSETS"
+          echo ""
+          MISSING=()
+          echo "$ASSETS" | grep -qxF "rules-injector-${VER}.zip" || MISSING+=("rules-injector-${VER}.zip")
+          echo "$ASSETS" | grep -qxF "rules-injector-${VER}.zip.sha256" || MISSING+=("rules-injector-${VER}.zip.sha256")
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::Missing required release assets:"
+            printf '  %s\n' "${MISSING[@]}"
+            # 公开 release 不留残缺：verify 失败即删除，下次重跑时重建
+            gh release delete "${{ github.ref_name }}" --yes
+            exit 1
+          fi
+          echo "All required assets present ✓"
+
+          # 下载资产，python 校验真实性 + 完整性（魔数 PK/EOCD/sha256）——
+          # zip 必须由标准库 zipfile 生成（build-release.py），不可用 tar -a -cf：
+          # GNU tar（Linux）不认 .zip 后缀会静默产出 tar 伪 zip，安装端报
+          # "end of central directory record signature not found"；
+          # scripts/verify-zip.py 纯 Python 三重校验，防伪 zip 再混入
+          gh release download "${{ github.ref_name }}" --pattern "rules-injector-${VER}.*" --dir "$RUNNER_TEMP/rules-verify" --clobber
+          cd "$RUNNER_TEMP/rules-verify"
+          ZIP="rules-injector-${VER}.zip"
+          python3 "$GITHUB_WORKSPACE/scripts/verify-zip.py" "$ZIP" "$ZIP.sha256"
