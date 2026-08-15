@@ -1,5 +1,5 @@
-# 依赖与构建产物（rules-injector 刻意零依赖：无 package.json / node_modules；
-# node_modules/、dist/ 仅为对齐姊妹插件 dsh-hanako 的通用清单，防未来引入构建栈误提交）
+# 依赖与构建产物（插件交付物零依赖：package.json 只作构建工具声明，构建工具不进交付包；
+# node_modules/ 仅本地构建用，releases/ 为发布产物）
 node_modules/
 dist/
 releases/

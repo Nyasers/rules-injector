@@ -17,6 +17,7 @@
 - [option-card-consumed-mark] 选项卡片消费标记：发送成功后 history.replaceState 把 u/v/m 写回 URL hash（与卡片数据同住，零新增存储），已提交卡片重载后按模式显示具体回复并锁定，历史卡片不可重复选择 — (2026-08-13)
 - [option-card-busy-retry] /card/choose 补 session_busy 自动重试（2s/5s/10s，零落盘不变） — (2026-08-13)
 - [release-build-script] 打包流程脚本化：scripts/build-release.py 一键打包 + 自校验 — (2026-08-13)
+- [build-toolchain-node] 打包工具链 Python → Node 统一：build-release.py / verify-zip.py 删除，改 archiver 纯 Node zip（scripts/build-release.mjs）+ verify-zip.mjs 三重校验 + CI setup-node（.nvmrc 24.18.0，npm ci），交付清单 PACKAGE_FILES 不变、构建工具不进交付包 — (2026-08-13)
 
 ## Superseded
 （暂无）

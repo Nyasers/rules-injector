@@ -10,20 +10,24 @@
 #     （--clobber 幂等）；dispatch 手动场景无 tag 无 release，
 #     产物走 upload-artifact 3 天窗口给人下载
 #   - verify（仅 tag 场景, needs [create-release, build]）: 单点收尾查 release
-#     资产 zip + sha256 齐全且为真 zip（python 校验魔数/EOCD/sha256，
-#     见 scripts/verify-zip.py），缺则删 release 并 fail（公开 release 不留残缺）
+#     资产 zip + sha256 齐全且为真 zip（node 校验魔数/EOCD/sha256，
+#     见 scripts/verify-zip.mjs），缺则删 release 并 fail（公开 release 不留残缺）
 #
 # 与 dsh-hanako 的差异（裁剪依据）:
-#   - rules-injector 刻意零依赖：无 package.json / node_modules，纯 Node ESM 源码
-#     （index.js + cli.mjs + lib/ + routes/ + tools/ + skills/ + rules/），
-#     打包用 Python 脚本 scripts/build-release.py（zipfile 标准库，无第三方依赖）
-#     → build/verify 不需要 setup-node，ubuntu runner 自带 python3，直接跑
-#   - 版本单一事实源 = manifest.json version（build-release.py 读它，不读 package.json）；
-#     资产命名版本段无 v 前缀（rules-injector-0.9.4.zip），tag 是 v0.9.4 →
-#     verify 匹配资产名时必须把 tag 去 v（bash ${TAG#v}）再拼 rules-injector-<ver>.zip，
-#     与 dsh-hanako（资产名带 v 直接拼 tag）不同；顺带焊死版本单一事实源：
-#     manifest version 与 tag 不一致（漏改版本就发版）时资产名对不上，verify fail
-#   - 无 rspack/npm 构建环节 → build job 只做「checkout → python3 打包 → 上传」
+#   - 构建工具链统一 Node（与插件本体、姊妹插件 dsh-hanako 同一工具栈）：
+#     .nvmrc 钉 Node 24.18.0（setup-node node-version-file），构建期只装 archiver
+#     一个 devDependency（npm ci），打包脚本 scripts/build-release.mjs 用 archiver
+#     纯 Node 生成 zip（含 PK 头/EOCD，防 tar 伪 zip）；交付物零依赖由固定清单
+#     PACKAGE_FILES 保证——package.json / package-lock.json / node_modules 不进包
+#   - 版本单一事实源 = manifest.json version（build-release.mjs 读它，不读 package.json；
+#     package.json 的 version 仅 npm 语义占位、不参与版本判断）；资产命名版本段无
+#     v 前缀（rules-injector-0.9.4.zip），tag 是 v0.9.4 → verify 匹配资产名时必须把
+#     tag 去 v（bash ${TAG#v}）再拼 rules-injector-<ver>.zip，与 dsh-hanako（资产名带
+#     v 直接拼 tag）不同；顺带焊死版本单一事实源：manifest version 与 tag 不一致
+#     （漏改版本就发版）时资产名对不上，verify fail
+#   - 无 rspack 构建环节 → build job 只做「checkout → setup-node → npm ci →
+#     npm run build（打包）→ 上传」，无 RSPACK_ENV 式独立构建环境（那套是
+#     dsh-hanako 为 rspack 大依赖设计的，本项目构建期仅 archiver 一个包）
 
 name: Release
 
@@ -74,10 +78,19 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # 零依赖插件：无 npm 栈，ubuntu runner 自带 python3，无需 setup-node/setup-python
-      # （build-release.py 只 import 标准库 argparse/hashlib/json/pathlib/sys/zipfile）
+      # 构建工具链统一 Node：.nvmrc 钉 Node 24.18.0（对齐 dsh-hanako），npm ci
+      # 只装 archiver 一个 devDependency（构建契约）；交付物零依赖由固定清单
+      # PACKAGE_FILES 保证（package.json/lock/node_modules 不进包）
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Package
-        run: python3 scripts/build-release.py
+        run: npm run build
 
       # tag 场景直传 zip + sha256 到 release（--clobber 幂等，重复推送/补传不报错）。
       # dispatch 手动场景无 tag 无 release，本步跳过，产物仍走下方 artifact 3 天窗口
@@ -101,8 +114,8 @@ jobs:
           path: releases/rules-injector-*.zip*
           if-no-files-found: error
 
-  # 单点收尾（仅 tag 场景）: 查 release 资产 zip + sha256 齐全且为真 zip（python 校验
-  # 魔数/EOCD/sha256，见 scripts/verify-zip.py），缺则删 release 并 fail
+  # 单点收尾（仅 tag 场景）: 查 release 资产 zip + sha256 齐全且为真 zip（node 校验
+  # 魔数/EOCD/sha256，见 scripts/verify-zip.mjs），缺则删 release 并 fail
   # （build 失败也进 verify → 资产不全即删 release，公开 release 不留残缺；
   #   create-release 失败时跳过，失败已由它自己报出，避免二次误报）
   verify:
@@ -115,10 +128,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # 构建工具链统一 Node：verify 脚本 scripts/verify-zip.mjs 为纯 Node 标准库实现，
+      # setup-node 提供 node 运行时（版本与 build 一致，node-version-file .nvmrc）
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
       # 硬约束：zip + sha256 必须齐全，缺一个 CI fail（draft 留给人手动检查）。
       # 直接查 release 资产（gh release view --json assets），无需 download-artifact。
       # 资产名精确匹配（-x 全行 + -F 固定字符串）：rules-injector 的 zip 名版本段
-      # 无 v 前缀（build-release.py 产 rules-injector-<ver>.zip，ver=manifest.json
+      # 无 v 前缀（build-release.mjs 产 rules-injector-<ver>.zip，ver=manifest.json
       # version，tag 是 v<ver>）→ 先把 tag 去 v（${TAG#v}）再拼资产名，与 dsh-hanako
       # （资产名带 v 直接拼 tag）不同；顺带焊死版本单一事实源：manifest version 与
       # tag 不一致（漏改版本就发版）时资产名对不上，verify fail
@@ -145,12 +164,12 @@ jobs:
           fi
           echo "All required assets present ✓"
 
-          # 下载资产，python 校验真实性 + 完整性（魔数 PK/EOCD/sha256）——
-          # zip 必须由标准库 zipfile 生成（build-release.py），不可用 tar -a -cf：
-          # GNU tar（Linux）不认 .zip 后缀会静默产出 tar 伪 zip，安装端报
-          # "end of central directory record signature not found"；
-          # scripts/verify-zip.py 纯 Python 三重校验，防伪 zip 再混入
+          # 下载资产，node 校验真实性 + 完整性（魔数 PK/EOCD/sha256）——
+          # zip 由 archiver 纯 Node 生成（build-release.mjs，含 PK 头/EOCD），
+          # 不用 tar -a -cf：GNU tar（Linux）不认 .zip 后缀会静默产出 tar 伪 zip，
+          # 安装端报 "end of central directory record signature not found"；
+          # scripts/verify-zip.mjs 纯 Node 三重校验，防伪 zip 再混入
           gh release download "${{ github.ref_name }}" --pattern "rules-injector-${VER}.*" --dir "$RUNNER_TEMP/rules-verify" --clobber
           cd "$RUNNER_TEMP/rules-verify"
           ZIP="rules-injector-${VER}.zip"
-          python3 "$GITHUB_WORKSPACE/scripts/verify-zip.py" "$ZIP" "$ZIP.sha256"
+          node "$GITHUB_WORKSPACE/scripts/verify-zip.mjs" "$ZIP" "$ZIP.sha256"
