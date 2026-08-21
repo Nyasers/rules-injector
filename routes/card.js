@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Nyasers
+//
 // routes/card.js — 选项卡片（原声律 v0.2.4 迁入：≤3 横排、>3 竖列、自定义输入、跳过）
 // 0.8.7（薄 iframe 厚服务端）：卡片数据落库 data.db option_cards 表，route 只带 id（/card?id=<cardId>）。
 // GET /card 带 id → 服务端查库 SSR 渲染完整卡片（未消费可点 / 已消费锁定 / 过期失效）；

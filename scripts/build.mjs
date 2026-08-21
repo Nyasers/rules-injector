@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Nyasers
+//
 // scripts/build.mjs — rules-injector rspack 构建（对齐姊妹插件 dsh-hanako scripts/build.mjs）
 // 产物：dist/ 下 5 个入口 ESM bundle（压缩），插件本体零依赖打包（node: 内建全 external，
 // lib/ 模块被各入口 import 内联进 bundle，交付物不再单独含 lib/ 目录）。

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Nyasers
+//
 // cli.mjs — rules-manager CLI（插件根，与 lib/ 同层：规则管理逻辑收敛于此）
 // 文件系统层复用同层 lib/rules-fs.js（单一事实源，随插件包分发）。
 // 用法：node cli.mjs <action> [--name N] [--content "..."|--content-file F] [--enabled true|false] [--dataDir P] [--seedDir P]

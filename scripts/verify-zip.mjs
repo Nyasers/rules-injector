@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Nyasers
+//
 // scripts/verify-zip.mjs — CI verify 用：校验发布 zip 真实性与完整性
 // 背景：构建工具链统一 Node 后，zip 由 archiver 纯 Node 生成（scripts/build-release.mjs，
 // 含 PK 头/EOCD）。本脚本在 CI verify 阶段兜底：魔数 + EOCD + sha256 三重校验，

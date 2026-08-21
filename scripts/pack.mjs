@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Nyasers
+//
 // scripts/pack.mjs — rules-injector 发布打包（rspack bundle + archiver，对齐姊妹插件
 // dsh-hanako scripts/pack.mjs 的两步结构：build（rspack）→ 静态项复制 → 铺平 → zip → SHA256）
 // 版本单一事实源 = manifest.json version（发版只 bump manifest.json；package.json 的

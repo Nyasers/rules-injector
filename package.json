@@ -1,6 +1,6 @@
 {
   "name": "rules-injector",
-  "version": "0.9.4",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "description": "构建工具声明（发版只 bump manifest.json version，本字段仅 npm 语义占位，不参与版本判断）",

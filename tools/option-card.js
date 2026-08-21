@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Nyasers
+//
 // tools/option-card.js — 对话内选项卡片（原型）
 // 工具：把问题与选项写入 data.db option_cards 表（数据 + 消费一条记录），route 只带 id（/card?id=<cardId>），
 // 渲染与消费判定由服务端从库读取（薄 iframe 厚服务端）。用户点击按钮后由 routes/card.js 负责注入会话。

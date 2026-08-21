@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Nyasers
+//
 // routes/sidebar.js — 规则注入器侧边栏（配置面板）· 文件化规则版（0.8.0）
 // 数据源：数据目录 rules/（builtin 工作副本 + custom 用户区）+ data.db（全局开关）
 // 开关 = 文件扩展名（.md ↔ .mdisabled）；custom 支持新增/编辑/删除；builtin 支持开关/编辑/恢复默认

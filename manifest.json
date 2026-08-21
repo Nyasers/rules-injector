@@ -1,7 +1,7 @@
 {
   "id": "rules-injector",
   "name": "规则注入器",
-  "version": "0.9.4",
+  "version": "0.10.0",
   "description": "把行为规则以隐藏消息注入会话：界面不显示、模型每轮可见。0.8.0 文件化：内置规则种子播种到数据目录工作副本（builtin），用户自编规则（custom）同名优先，内置规则自定义 = 建同名自编覆盖（0.8.6，开关态跟随内置），恢复默认移除覆盖并保持开关状态；开关 = 文件扩展名（.md/.mdisabled）；状态统一 data.db（node:sqlite，注入指纹/卡片消费/全局开关）。清单标识为内容指纹（sha256 前 16 位），实质内容变化才更新指纹，注入检查在用户消息提交时执行。0.9.0 规则管理迁入插件技能 skills/rules-manager/（随包分发，替代 manage_rules 工具）；toggle 状态判定同步 .mdisabled 命名（修复禁用规则启用时误报「已经是启用状态」）。0.9.1 skill 瘦身为薄壳（SKILL.md + bin/cli.mjs），逻辑模块归位插件根单一事实源，去重复打包、个人路径与过时信息。0.9.2 规则管理逻辑收敛进 cli.mjs 单一脚本（复用 lib/rules-fs.js），tools/ 仅注册工具。0.9.3 清理 0.8.0 前遗留 tools/shared.js（RULES.md 解析死代码，PLUGIN_ROOT 内联至 index/sidebar）。0.9.4 cli.mjs 上移至插件根与 lib 同层（import ./lib/rules-fs.js，消除跨层路径），skills/rules-manager/ 仅剩 SKILL.md。",
   "trust": "full-access",
   "capabilities": [

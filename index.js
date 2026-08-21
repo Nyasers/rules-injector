@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Nyasers
+//
 // index.js — 规则注入器（rules-injector）
 // 注入通道：仅 deferred（宿主 display:false custom_message 投递，模型可见、界面隐身）。
 // display 表达位：插件在 register meta 里携带 display 意图（INJECT_DISPLAY），
