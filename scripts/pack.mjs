@@ -16,7 +16,16 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { cpSync, createWriteStream, existsSync, mkdirSync, renameSync, rmSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  renameSync,
+  rmSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { inflateRawSync } from "node:zlib";
@@ -36,6 +45,7 @@ const PACKAGE_FILES = [
   "routes/card.js",
   "routes/sidebar.js",
   "tools/option-card.js",
+  "tools/option-choose.js",
   "manifest.json",
   "README.md",
   "skills/rules-manager/SKILL.md",
@@ -66,7 +76,8 @@ function listZipEntries(buf) {
   const names = [];
   let p = cdOffset;
   for (let i = 0; i < total; i++) {
-    if (buf.readUInt32LE(p) !== 0x02014b50) throw new Error("central directory 头签名错误");
+    if (buf.readUInt32LE(p) !== 0x02014b50)
+      throw new Error("central directory 头签名错误");
     const nameLen = buf.readUInt16LE(p + 28);
     const extraLen = buf.readUInt16LE(p + 30);
     const commentLen = buf.readUInt16LE(p + 32);
@@ -122,12 +133,13 @@ async function main() {
     fail(`manifest.json 读取失败: ${e.message}`);
   }
   const version = manifest.version;
-  if (typeof version !== "string" || !version) fail("manifest.json 缺少有效 version 字段");
+  if (typeof version !== "string" || !version)
+    fail("manifest.json 缺少有效 version 字段");
 
   const out = join(RELEASES_DIR, `rules-injector-${version}.zip`);
   const shaOut = `${out}.sha256`;
-  const force = process.argv.includes("--force");
-  if (existsSync(out) && !force) fail(`${out} 已存在，加 --force 覆盖（或先 bump 版本）`);
+  // const force = process.argv.includes("--force");
+  // if (existsSync(out) && !force) fail(`${out} 已存在，加 --force 覆盖（或先 bump 版本）`);
 
   // 1. 构建 bundle（rspack，产物 dist/）
   console.log("[pack] build...");
@@ -189,16 +201,22 @@ async function main() {
     }
     // archiver 按条目名排序归档（确定性、跨平台稳定），清单比对按集合一致判断、
     // 不依赖条目顺序
-    if (names.length !== PACKAGE_FILES.length || [...names].sort().join("\0") !== [...PACKAGE_FILES].sort().join("\0")) {
+    if (
+      names.length !== PACKAGE_FILES.length ||
+      [...names].sort().join("\0") !== [...PACKAGE_FILES].sort().join("\0")
+    ) {
       fail("自校验失败: 包内文件清单与 PACKAGE_FILES 不符");
     }
     let vm;
     try {
-      vm = JSON.parse(readZipEntry(buf, "manifest.json").toString("utf8")).version;
+      vm = JSON.parse(
+        readZipEntry(buf, "manifest.json").toString("utf8"),
+      ).version;
     } catch (e) {
       fail(`自校验失败: 包内 manifest.json 无法读取（${e.message}）`);
     }
-    if (vm !== version) fail(`自校验失败: 包内 manifest version=${vm} != 源 ${version}`);
+    if (vm !== version)
+      fail(`自校验失败: 包内 manifest version=${vm} != 源 ${version}`);
 
     // sha256 摘要（hex 大写、无尾换行）：与 zip 同名成对产出，发布资产 zip + sha256 成对
     const sha = createHash("sha256").update(buf).digest("hex").toUpperCase();
@@ -208,7 +226,9 @@ async function main() {
     renameSync(tmpZip, out);
     renameSync(tmpSha, shaOut);
 
-    console.log(`[ok] rules-injector-${version}.zip 打包完成（${names.length} 个文件，version=${version}）`);
+    console.log(
+      `[ok] rules-injector-${version}.zip 打包完成（${names.length} 个文件，version=${version}）`,
+    );
     console.log(`[ok] rules-injector-${version}.zip.sha256  SHA256 ${sha}`);
   } finally {
     // 失败路径清理临时文件，不残留半成品

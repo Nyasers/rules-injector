@@ -1,0 +1,2882 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="card-id" content="rules-injector-option-card-template" />
+    <title>选项卡片</title>
+    <style>
+      :root {
+        --bg: #f5efe4;
+        --bg-card: #fbf7ee;
+        --text: #2a2622;
+        --text-light: #4a433c;
+        --text-muted: #6b6158;
+        --border: #d8cfbe;
+        --accent: #537d96;
+        --accent-hover: #3f6179;
+        --accent-light: rgba(83, 125, 150, 0.08);
+        --accent-rgb: 83, 125, 150;
+        --font-serif:
+          "EB Garamond", "Noto Serif SC", "Source Han Serif SC", "Songti SC",
+          "STSong", serif;
+        --font-ui: system-ui, -apple-system, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
+      }
+
+      /* Reset */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        background: var(--bg-card, #fbf7ee);
+        color: var(--text, #2a2622);
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      html::-webkit-scrollbar,
+      body::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+      /* The card gets the whole canvas: this rule sets the house's voice and claims
+   no space. A margin here would be the host deciding how much of the card the
+   card may use, which it cannot know — a sheet of paper wants writing held off
+   the rim, a painted card wants the rim itself, and the two are told apart only
+   from inside. Whichever it is, the card says so on its own content. */
+      body {
+        font-family: var(--font-serif);
+        font-size: 14px;
+        line-height: 1.65;
+      }
+
+      /* Typography (§4) */
+      h1 {
+        font-size: 1.35rem;
+        font-weight: 500;
+        line-height: 1.25;
+        margin: 0 0 0.6em;
+      }
+      h2 {
+        font-size: 1.1rem;
+        font-weight: 500;
+        line-height: 1.3;
+        margin: 0.8em 0 0.4em;
+        border-left: 2px solid var(--accent, #537d96);
+        padding-left: 8px;
+      }
+      h3 {
+        font-size: 0.95rem;
+        font-weight: 500;
+        line-height: 1.35;
+        margin: 0.6em 0 0.3em;
+      }
+      p {
+        margin: 0.4em 0;
+      }
+      small {
+        font-size: 0.75rem;
+        color: var(--text-muted, #6b6158);
+      }
+      strong {
+        font-weight: 500;
+        color: var(--accent, #537d96);
+      }
+      a {
+        color: var(--accent, #537d96);
+        text-decoration: none;
+      }
+      hr {
+        border: none;
+        border-top: 0.5px solid var(--border, #d8cfbe);
+        margin: 0.8em 0;
+      }
+
+      /* Table (§6) */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        margin: 0.6em 0;
+      }
+      th {
+        text-align: left;
+        font-weight: 500;
+        color: var(--text-light, #4a433c);
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--border, #d8cfbe);
+      }
+      td {
+        padding: 5px 8px;
+        border-bottom: 0.5px solid rgba(0, 0, 0, 0.06);
+        color: var(--text, #2a2622);
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* Lists */
+      ul,
+      ol {
+        padding-left: 18px;
+        margin: 0.4em 0;
+      }
+      li {
+        margin: 0.15em 0;
+      }
+      li::marker {
+        color: var(--accent, #537d96);
+      }
+
+      /* Code (§6) */
+      pre {
+        background: var(--bg, #f5efe4);
+        border: 0.5px solid var(--border, #d8cfbe);
+        border-radius: 4px;
+        padding: 8px 12px;
+        overflow-x: auto;
+      }
+      code {
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        color: var(--text, #2a2622);
+      }
+
+      /* Blockquote (§6) */
+      blockquote {
+        border-left: 2px solid var(--accent, #537d96);
+        padding: 4px 0 4px 12px;
+        color: var(--text-muted, #6b6158);
+        font-style: italic;
+        margin: 0.5em 0;
+      }
+
+      /* SVG defaults (§11) */
+      svg {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+      }
+      svg text {
+        font-family: var(--font-serif);
+      }
+
+      /* Accessibility */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+      }
+
+      /* Host-driven visible UI actions */
+      [data-hana-ui-action-pressed="true"] {
+        outline: 1px solid var(--accent, #537d96);
+        outline-offset: -1px;
+        filter: brightness(0.96);
+      }
+    </style>
+    <script type="application/json" data-card-export>
+      { "cardId": "rules-injector-option-card-template", "title": "选项卡片" }
+    </script>
+    <script type="application/json" data-card-state>
+      { "cardId": "", "question": "示例问题", "options": ["选项一", "选项二"] }
+    </script>
+    <script data-hana-host-script="card-action-bridge">
+      (function () {
+        var MSG = "hana.card-keyboard-active";
+        var SIZING_MSG = "card:sizing-mode";
+        var SIZING_REQUEST_MSG = "card:sizing-mode-request";
+        var ACTION_MSG = "hana.card-action";
+        var ACTION_RESULT_MSG = "hana.card-action-result";
+        // 宿主在把这张卡拓成一份新实例之前，先问它"你到目前为止试图存下来的东西是什么"。
+        // 问答与 hana.card-action 同款：宿主发请求带 requestId，卡片照原样答回去。
+        var STATE_SNAPSHOT_REQUEST_MSG = "hana.card-state-snapshot-request";
+        var STATE_SNAPSHOT_MSG = "hana.card-state-snapshot";
+        var CARD_REQUEST_MSG = "card:request";
+        var CARD_RESPONSE_MSG = "card:response";
+        // 本版之前铸出的宿主只认识、也只回这个旧名。新卡发中立名，但收响应时两种都认，
+        // 这样一张卡在新旧宿主里都能拿到应答。
+        var LEGACY_HOST_RESPONSE_MSG = "hana.card-host-response";
+        var ACTION_ID_ATTR = "data-hana-ui-action-id";
+        var DOM_SCAN_LIMIT = 600;
+        var DOM_OUTLINE_LIMIT = 120;
+        var ACTION_NODE_LIMIT = 80;
+        var ACTION_PRESS_MS = 140;
+        var HOST_REQUEST_TIMEOUT_MS = 5000;
+        // A protected invocation can legitimately spend most of five minutes waiting
+        // for its owner to answer a confirmation, then still needs time to execute.
+        // Keep ordinary host questions short; only tool.invoke owns this long wait.
+        var HOST_TOOL_REQUEST_TIMEOUT_MS = 6 * 60 * 1000 + 10000;
+        var STANDALONE_STATE_MAX_BYTES = 64 * 1024;
+        var DEFAULT_SEQUENCE_INTERVAL_MS = 260;
+        var MIN_SEQUENCE_INTERVAL_MS = 40;
+        var MAX_SEQUENCE_INTERVAL_MS = 5000;
+        var MAX_SEQUENCE_STEPS = 256;
+        var MIN_SEQUENCE_HOLD_MS = 40;
+        var MAX_SEQUENCE_HOLD_MS = 10000;
+        var MAX_SEQUENCE_TOTAL_MS = 120000;
+        var MAX_SEQUENCE_CHORD_SIZE = 8;
+        var INTERACTIVE_ROLES = {
+          button: true,
+          checkbox: true,
+          link: true,
+          menuitem: true,
+          option: true,
+          radio: true,
+          slider: true,
+          switch: true,
+          tab: true,
+          textbox: true,
+        };
+        var DATA_ACTION_HINTS = {
+          action: true,
+          key: true,
+          midi: true,
+          note: true,
+          noteIdx: true,
+          noteIndex: true,
+          noteidx: true,
+          noteindex: true,
+          value: true,
+        };
+        var elementSeq = 0;
+        // ── 音频解锁（iOS）──
+        // iOS 只在可信用户手势的调用栈内允许 AudioContext.resume()；Agent 的
+        // 合成点击 isTrusted=false，解锁不了。宿主包一层构造记录全部实例，
+        // 用户第一次真实触摸卡片时统一 resume，之后合成序列照常出声。
+        var hanaAudioContexts = [];
+        (function hookAudioContexts() {
+          ["AudioContext", "webkitAudioContext"].forEach(function (name) {
+            var Orig = window[name];
+            if (typeof Orig !== "function") return;
+            var Wrapped = function AudioContextWithHanaUnlock(options) {
+              var inst = arguments.length ? new Orig(options) : new Orig();
+              hanaAudioContexts.push(inst);
+              return inst;
+            };
+            Wrapped.prototype = Orig.prototype;
+            window[name] = Wrapped;
+          });
+        })();
+        function unlockAudioContexts(event) {
+          if (event && event.isTrusted !== true) return;
+          for (var i = 0; i < hanaAudioContexts.length; i += 1) {
+            var ctx = hanaAudioContexts[i];
+            try {
+              if (ctx.state === "suspended") ctx.resume().catch(function () {});
+            } catch (_) {
+              /* resume 失败不影响触摸本身 */
+            }
+          }
+        }
+        window.addEventListener("pointerdown", unlockAudioContexts, true);
+        window.addEventListener("touchend", unlockAudioContexts, true);
+        window.addEventListener("keydown", unlockAudioContexts, true);
+        function currentAudioContextState() {
+          if (!hanaAudioContexts.length) return null;
+          for (var i = 0; i < hanaAudioContexts.length; i += 1) {
+            if (hanaAudioContexts[i].state === "suspended") return "suspended";
+          }
+          return "running";
+        }
+        var keyboardActive = false;
+        function hostRequestId() {
+          return (
+            "cardhost_" +
+            Date.now().toString(36) +
+            "_" +
+            Math.random().toString(36).slice(2, 8)
+          );
+        }
+        // 失败信封的 result 恒为对象（规范要求），卡片代码读它时不必先判空，也不必
+        // 为"宿主答的失败"和"卡片自己兜底答的失败"各写一条分支。
+        function hostStructuredError(code, error, result) {
+          return {
+            ok: false,
+            code: code,
+            error: error,
+            result: result || {},
+          };
+        }
+        function safeJsonSize(value) {
+          try {
+            var text = JSON.stringify(value);
+            return typeof text === "string" ? text.length : Infinity;
+          } catch (_) {
+            return Infinity;
+          }
+        }
+        function standaloneExportCardId() {
+          var node = document.querySelector(
+            'script[type="application/json"][data-card-export]',
+          );
+          if (!node) return null;
+          try {
+            var parsed = JSON.parse(node.textContent || "");
+            return parsed && typeof parsed.cardId === "string" && parsed.cardId
+              ? parsed.cardId
+              : null;
+          } catch (_) {
+            return null;
+          }
+        }
+        function standaloneStorageKey() {
+          // 优先用导出块里的 cardId 派生 key（同标题的两张卡不再互相覆盖对方的
+          // localStorage）；没有该块（手写旧卡）时保留原 title/path 兜底。
+          var cardId = standaloneExportCardId();
+          var name =
+            cardId || document.title || location.pathname || "interactive-card";
+          return "hana:interactive-card-state:" + encodeURIComponent(name);
+        }
+        function standaloneEmbeddedStateSnapshot() {
+          var node = document.querySelector(
+            'script[type="application/json"][data-card-state]',
+          );
+          if (!node) return null;
+          try {
+            var parsed = JSON.parse(node.textContent || "");
+            return parsed &&
+              typeof parsed === "object" &&
+              !Array.isArray(parsed)
+              ? parsed
+              : null;
+          } catch (_) {
+            return null;
+          }
+        }
+        function standaloneReadState() {
+          try {
+            var raw = window.localStorage
+              ? window.localStorage.getItem(standaloneStorageKey())
+              : null;
+            if (!raw) {
+              // localStorage 还没有本地改动时，回退读导出时带的状态快照作初始值；
+              // 一旦本地写过（哪怕写的是 {}），localStorage 优先。
+              return standaloneEmbeddedStateSnapshot() || {};
+            }
+            var parsed = JSON.parse(raw);
+            return parsed &&
+              typeof parsed === "object" &&
+              !Array.isArray(parsed)
+              ? parsed
+              : {};
+          } catch (_) {
+            return {};
+          }
+        }
+        function standaloneWriteState(state) {
+          if (!state || typeof state !== "object" || Array.isArray(state))
+            state = {};
+          if (safeJsonSize(state) > STANDALONE_STATE_MAX_BYTES) {
+            return hostStructuredError(
+              "CARD_HOST_STATE_TOO_LARGE",
+              "Standalone Interactive Card state is too large.",
+            );
+          }
+          try {
+            if (!window.localStorage) {
+              return hostStructuredError(
+                "CARD_HOST_STORAGE_UNAVAILABLE",
+                "Standalone storage is unavailable.",
+              );
+            }
+            window.localStorage.setItem(
+              standaloneStorageKey(),
+              JSON.stringify(state),
+            );
+            return {
+              ok: true,
+              result: { storage: "localStorage", state: state },
+            };
+          } catch (err) {
+            return hostStructuredError(
+              "CARD_HOST_STORAGE_FAILED",
+              err && err.message
+                ? err.message
+                : "Standalone storage write failed.",
+            );
+          }
+        }
+        // 中立能力名 → 本宿主一直在用的分发名。收到哪个名字都照办，卡片作者写
+        // 中立名也能通。发射侧（card.invoke / card.capabilities）继续发老名字：
+        // 两边都双收，互通已经成立，等中立发射串定下来再一次性换，免得现在换了
+        // 之后又要为"老宿主收不到新名"再补一层兼容。
+        var CAPABILITY_ALIASES = {
+          invoke: "tool.invoke",
+          capabilities: "host.capabilities",
+        };
+        function canonicalCapability(capability) {
+          return Object.prototype.hasOwnProperty.call(
+            CAPABILITY_ALIASES,
+            capability,
+          )
+            ? CAPABILITY_ALIASES[capability]
+            : capability;
+        }
+        function standaloneHostRequest(rawCapability, payload) {
+          var capability = canonicalCapability(rawCapability);
+          var data =
+            payload && typeof payload === "object" && !Array.isArray(payload)
+              ? payload
+              : {};
+          if (capability === "host.capabilities") {
+            return Promise.resolve({
+              ok: true,
+              result: {
+                environment: "standalone",
+                pinned: false,
+                capabilities: {
+                  // 两个纯字符串状态字是可移植卡片读的那份；下面按能力名展开的
+                  // 详情映射是本宿主的扩展，卡片不认识就忽略。
+                  state: "local_fallback",
+                  invoke: "requires_host",
+                  "host.capabilities": { status: "available" },
+                  "state.get": { status: "local_fallback" },
+                  "state.set": { status: "local_fallback" },
+                  "tool.invoke": { status: "requires_host" },
+                },
+                agentHint:
+                  "This card is running outside Hana Host. Display works; host tool bindings need Hana.",
+              },
+            });
+          }
+          if (capability === "state.get") {
+            var state = standaloneReadState();
+            var key =
+              typeof data.key === "string" && data.key.trim()
+                ? data.key.trim()
+                : null;
+            return Promise.resolve({
+              ok: true,
+              result: Object.assign(
+                { storage: "localStorage", state: state },
+                key
+                  ? {
+                      key: key,
+                      value: Object.prototype.hasOwnProperty.call(state, key)
+                        ? state[key]
+                        : null,
+                    }
+                  : {},
+              ),
+            });
+          }
+          if (capability === "state.set") {
+            if (
+              data.state &&
+              typeof data.state === "object" &&
+              !Array.isArray(data.state)
+            ) {
+              return Promise.resolve(standaloneWriteState(data.state));
+            }
+            var setKey =
+              typeof data.key === "string" && data.key.trim()
+                ? data.key.trim()
+                : null;
+            if (!setKey)
+              return Promise.resolve(
+                hostStructuredError(
+                  "CARD_HOST_STATE_KEY_REQUIRED",
+                  "state.set requires either state or key.",
+                ),
+              );
+            var next = standaloneReadState();
+            if (data.delete === true) delete next[setKey];
+            else
+              next[setKey] = Object.prototype.hasOwnProperty.call(data, "value")
+                ? data.value
+                : null;
+            return Promise.resolve(standaloneWriteState(next));
+          }
+          if (capability === "run.status" || capability === "run.cancel") {
+            return Promise.resolve(
+              hostStructuredError(
+                "CARD_HOST_CARD_NOT_PINNED",
+                "run.status/run.cancel need the pinned Hana host. Pin this card to the Chalkboard first.",
+              ),
+            );
+          }
+          if (capability === "tool.invoke") {
+            return Promise.resolve(
+              hostStructuredError(
+                "CARD_HOST_TOOL_UNAVAILABLE",
+                "This Interactive Card tool binding requires Hana Host.",
+                { bindingId: data.bindingId || null },
+              ),
+            );
+          }
+          return Promise.resolve(
+            hostStructuredError(
+              "CARD_HOST_CAPABILITY_NOT_SUPPORTED",
+              "Unsupported card host capability.",
+            ),
+          );
+        }
+        function requestHostCapability(capability, payload) {
+          if (typeof capability !== "string" || !capability.trim()) {
+            return Promise.resolve(
+              hostStructuredError(
+                "CARD_HOST_CAPABILITY_REQUIRED",
+                "Card host capability is required.",
+              ),
+            );
+          }
+          capability = capability.trim();
+          if (!window.parent || window.parent === window) {
+            return standaloneHostRequest(capability, payload);
+          }
+          return new Promise(function (resolve) {
+            var requestId = hostRequestId();
+            var finished = false;
+            function finish(value) {
+              if (finished) return;
+              finished = true;
+              window.removeEventListener("message", onMessage);
+              clearTimeout(timer);
+              resolve(
+                value && typeof value === "object"
+                  ? value
+                  : hostStructuredError(
+                      "CARD_HOST_INVALID_RESPONSE",
+                      "Card host returned an invalid response.",
+                    ),
+              );
+            }
+            function onMessage(event) {
+              var data = event.data;
+              if (!data || data.requestId !== requestId) return;
+              if (
+                data.type !== CARD_RESPONSE_MSG &&
+                data.type !== LEGACY_HOST_RESPONSE_MSG
+              )
+                return;
+              finish({
+                ok: data.ok === true,
+                code: data.code || undefined,
+                error: data.error || undefined,
+                result:
+                  data.result && typeof data.result === "object"
+                    ? data.result
+                    : undefined,
+              });
+            }
+            var timeoutMs =
+              canonicalCapability(capability) === "tool.invoke"
+                ? HOST_TOOL_REQUEST_TIMEOUT_MS
+                : HOST_REQUEST_TIMEOUT_MS;
+            var timer = setTimeout(function () {
+              finish(
+                hostStructuredError(
+                  "CARD_HOST_TIMEOUT",
+                  "Hana Host did not answer the Interactive Card request in time.",
+                ),
+              );
+            }, timeoutMs);
+            window.addEventListener("message", onMessage);
+            try {
+              window.parent.postMessage(
+                {
+                  type: CARD_REQUEST_MSG,
+                  requestId: requestId,
+                  capability: capability,
+                  payload: payload === undefined ? null : payload,
+                },
+                "*",
+              );
+            } catch (err) {
+              finish(
+                hostStructuredError(
+                  "CARD_HOST_POST_FAILED",
+                  err && err.message
+                    ? err.message
+                    : "Failed to send Interactive Card request to Hana Host.",
+                ),
+              );
+            }
+          });
+        }
+        // ── 本地乐观状态层 ──
+        // 卡片每一次 state.set 都先落在这里，然后照旧转发给宿主。聊天卡的 state.set
+        // 由宿主本地确认、不落宿主存储（inline parity 波，owner 2026-08-20）——
+        // 这一层因此不是兜底，是聊天卡状态的正式存放处：用户刚打的字、刚勾的框就
+        // 活在这里。宿主要把卡拓上黑板时来问这一层，用户在聊天里做过的事就一起被
+        // 拓走，而不是被出厂状态盖掉。
+        // 读取一个字都不碰：state.get 仍然只问宿主，聊天读消息块的只读种子、钉住读
+        // 实例态的分工不变。
+        var localState = {};
+        function rememberLocalState(key, value) {
+          // 没给值等同写空，与独立运行时的存储规则同款；JSON 里没有 undefined 这种东西。
+          localState[key] = value === undefined ? null : value;
+        }
+        function rememberLocalStatePatch(patch) {
+          for (var key in patch) {
+            if (Object.prototype.hasOwnProperty.call(patch, key))
+              rememberLocalState(key, patch[key]);
+          }
+        }
+        function postStateSnapshot(requestId) {
+          var snapshot = {};
+          for (var key in localState) {
+            if (Object.prototype.hasOwnProperty.call(localState, key))
+              snapshot[key] = localState[key];
+          }
+          // 只答本地这一层。与出厂状态怎么合并是宿主的事——卡片不知道自己是从哪份
+          // 种子长出来的，也不该替宿主决定哪一边说了算。
+          window.parent.postMessage(
+            {
+              type: STATE_SNAPSHOT_MSG,
+              requestId: requestId,
+              state: snapshot,
+            },
+            "*",
+          );
+        }
+        function installCardApi() {
+          var base =
+            window.card && typeof window.card === "object" ? window.card : null;
+          if (!base)
+            base =
+              window.hana && typeof window.hana === "object"
+                ? window.hana
+                : null;
+          var existing = base || {};
+          var stateApi =
+            existing.state && typeof existing.state === "object"
+              ? existing.state
+              : {};
+          stateApi.get = function (key) {
+            return requestHostCapability(
+              "state.get",
+              typeof key === "string" && key.trim() ? { key: key.trim() } : {},
+            );
+          };
+          stateApi.set = function (keyOrState, value) {
+            if (typeof keyOrState === "string") {
+              rememberLocalState(keyOrState, value);
+              return requestHostCapability("state.set", {
+                key: keyOrState,
+                value: value,
+              });
+            }
+            var patch =
+              keyOrState && typeof keyOrState === "object" ? keyOrState : {};
+            rememberLocalStatePatch(patch);
+            return requestHostCapability("state.set", { state: patch });
+          };
+          existing.request = requestHostCapability;
+          existing.invoke = function (bindingId, input) {
+            return requestHostCapability("tool.invoke", {
+              bindingId: bindingId,
+              input: input,
+            });
+          };
+          existing.capabilities = function () {
+            return requestHostCapability("host.capabilities", {});
+          };
+          existing.state = stateApi;
+          window.card = existing;
+          // hana 只是留给已经铸出去的老卡片的兼容别名，指向上面那个同一个对象。
+          // 所有面向未来的东西——新写的卡、铸卡教材、文档——一律只用 card。
+          window.hana = existing;
+        }
+        installCardApi();
+        // ── 声明式触发层：data-invoke / data-persist / data-result ──
+        // 三个标记全部只经 window.card 的公开 API 行事，任何标记能做到的事，卡片
+        // 作者用四件套手写都能做到同样的事——这是这一层的存在前提，不是巧合。
+        // 出了岔子一律安静收场（拿到失败信封或什么都不做），不抛未捕获异常。
+        var SUGAR_NATIVELY_ACTIVATED = {
+          BUTTON: true,
+          A: true,
+          INPUT: true,
+          SELECT: true,
+          TEXTAREA: true,
+        };
+        var SUGAR_FORM_CONTROLS = { INPUT: true, TEXTAREA: true, SELECT: true };
+        function sugarIsPlainObject(value) {
+          return (
+            value !== null && typeof value === "object" && !Array.isArray(value)
+          );
+        }
+        function sugarTextify(value) {
+          if (value === null || value === undefined) return "";
+          if (typeof value === "string") return value;
+          if (typeof value === "number" || typeof value === "boolean")
+            return String(value);
+          if (sugarIsPlainObject(value) && Object.keys(value).length === 0)
+            return "";
+          try {
+            return JSON.stringify(value, null, 2);
+          } catch (_) {
+            return "";
+          }
+        }
+        function sugarClosest(node, selector) {
+          var el = node && node.nodeType === 3 ? node.parentNode : node;
+          if (!el || typeof el.closest !== "function") return null;
+          return el.closest(selector);
+        }
+        function sugarSerializeForm(form) {
+          var data = {};
+          if (!form || typeof window.FormData !== "function") return data;
+          var entries = new window.FormData(form).entries();
+          var step = entries.next();
+          while (!step.done) {
+            var name = step.value[0];
+            var value = step.value[1];
+            if (Object.prototype.hasOwnProperty.call(data, name)) {
+              if (Array.isArray(data[name])) data[name].push(value);
+              else data[name] = [data[name], value];
+            } else {
+              data[name] = value;
+            }
+            step = entries.next();
+          }
+          return data;
+        }
+        // 结果只以 textContent 落进容器：注入层永不往卡片里写标记。
+        function sugarRenderResult(bindingId, envelope) {
+          var nodes = document.querySelectorAll("[data-result]");
+          var text = sugarTextify(envelope && envelope.result);
+          for (var i = 0; i < nodes.length; i += 1) {
+            if (nodes[i].getAttribute("data-result") === bindingId)
+              nodes[i].textContent = text;
+          }
+        }
+        function sugarReadControl(el) {
+          return el.type === "checkbox" ? !!el.checked : el.value;
+        }
+        function sugarWriteControl(el, value) {
+          if (el.type === "checkbox") {
+            el.checked = !!value;
+            return;
+          }
+          el.value = value === null || value === undefined ? "" : String(value);
+        }
+        function installCardSugar() {
+          var api = window.card;
+          if (!api || typeof api.invoke !== "function") return;
+          // data-result 挂在 invoke 的统一出口上，所以标记触发的调用和卡片自己写的
+          // window.card.invoke 都会刷新容器，两条路径可观测的结果一致。
+          var baseInvoke = api.invoke;
+          api.invoke = function (bindingId, input) {
+            var pending = baseInvoke.call(api, bindingId, input);
+            if (!pending || typeof pending.then !== "function") return pending;
+            return pending.then(function (envelope) {
+              try {
+                sugarRenderResult(bindingId, envelope);
+              } catch (_) {
+                /* 糖失败不许殃及调用方 */
+              }
+              return envelope;
+            });
+          };
+          function activateInvoker(el) {
+            var bindingId = el.getAttribute("data-invoke");
+            if (!bindingId) return;
+            var form =
+              typeof el.closest === "function" ? el.closest("form") : null;
+            var input = form ? sugarSerializeForm(form) : undefined;
+            try {
+              var pending = window.card.invoke(bindingId, input);
+              if (pending && typeof pending.catch === "function")
+                pending.catch(function () {});
+            } catch (_) {
+              /* 安静失败 */
+            }
+          }
+          function hydratePersistedControls() {
+            var controls = document.querySelectorAll("[data-persist]");
+            if (!controls.length) return;
+            window.card.state.get().then(
+              function (envelope) {
+                if (!envelope || envelope.ok !== true) return;
+                var state =
+                  envelope.result && sugarIsPlainObject(envelope.result.state)
+                    ? envelope.result.state
+                    : {};
+                for (var i = 0; i < controls.length; i += 1) {
+                  var control = controls[i];
+                  if (!SUGAR_FORM_CONTROLS[control.tagName]) continue;
+                  var key = control.getAttribute("data-persist");
+                  if (key && Object.prototype.hasOwnProperty.call(state, key))
+                    sugarWriteControl(control, state[key]);
+                }
+              },
+              function () {
+                /* 读不到状态就保持卡片自带的初值 */
+              },
+            );
+          }
+          document.addEventListener(
+            "click",
+            function (event) {
+              var el = sugarClosest(event.target, "[data-invoke]");
+              if (!el) return;
+              // 绑定是卡片唯一的对外通道，表单不许自己往外提交。
+              if (typeof el.closest === "function" && el.closest("form"))
+                event.preventDefault();
+              activateInvoker(el);
+            },
+            true,
+          );
+          document.addEventListener(
+            "keydown",
+            function (event) {
+              if (event.key !== "Enter") return;
+              var el = sugarClosest(event.target, "[data-invoke]");
+              if (!el) return;
+              // 按钮和链接自己就把 Enter 变成 click，这里再管一次会发两遍。
+              if (SUGAR_NATIVELY_ACTIVATED[el.tagName]) return;
+              event.preventDefault();
+              activateInvoker(el);
+            },
+            true,
+          );
+          document.addEventListener(
+            "change",
+            function (event) {
+              var el = event.target;
+              if (!el || typeof el.getAttribute !== "function") return;
+              if (!SUGAR_FORM_CONTROLS[el.tagName]) return;
+              var key = el.getAttribute("data-persist");
+              if (!key) return;
+              var pending = window.card.state.set(key, sugarReadControl(el));
+              if (pending && typeof pending.catch === "function")
+                pending.catch(function () {});
+            },
+            true,
+          );
+          if (document.readyState === "loading") {
+            document.addEventListener(
+              "DOMContentLoaded",
+              hydratePersistedControls,
+              { once: true },
+            );
+          } else {
+            hydratePersistedControls();
+          }
+        }
+        installCardSugar();
+        function setKeyboardActive(next) {
+          keyboardActive = next === true;
+        }
+        function blockKeyWhenInactive(event) {
+          if (keyboardActive) return;
+          event.preventDefault();
+          event.stopPropagation();
+          if (typeof event.stopImmediatePropagation === "function")
+            event.stopImmediatePropagation();
+        }
+        window.addEventListener("keydown", blockKeyWhenInactive, true);
+        window.addEventListener("keypress", blockKeyWhenInactive, true);
+        window.addEventListener("keyup", blockKeyWhenInactive, true);
+        window.addEventListener(
+          "pointerdown",
+          function () {
+            setKeyboardActive(true);
+          },
+          true,
+        );
+        window.addEventListener(
+          "touchstart",
+          function () {
+            setKeyboardActive(true);
+          },
+          true,
+        );
+        window.addEventListener(
+          "blur",
+          function () {
+            setKeyboardActive(false);
+          },
+          true,
+        );
+        function normalizedText(value, max) {
+          if (typeof value !== "string") return "";
+          var text = value.replace(/\s+/g, " ").trim();
+          if (!text) return "";
+          return text.length > max ? text.slice(0, max) : text;
+        }
+        function dataAttributes(el) {
+          var out = {};
+          if (!el || !el.attributes) return out;
+          for (var i = 0; i < el.attributes.length; i += 1) {
+            var attr = el.attributes[i];
+            if (
+              !attr ||
+              attr.name.indexOf("data-") !== 0 ||
+              attr.name === ACTION_ID_ATTR
+            )
+              continue;
+            var key = attr.name.slice(5).replace(/-([a-z])/g, function (_, ch) {
+              return ch.toUpperCase();
+            });
+            out[key] = normalizedText(attr.value || "", 120);
+            if (Object.keys(out).length >= 16) break;
+          }
+          return out;
+        }
+        function firstDataLabel(attrs) {
+          var preferred = [
+            "label",
+            "note",
+            "key",
+            "midi",
+            "noteIdx",
+            "noteIndex",
+            "action",
+            "value",
+            "i",
+            "index",
+          ];
+          for (var i = 0; i < preferred.length; i += 1) {
+            var value = attrs[preferred[i]];
+            if (value) return preferred[i] + ": " + value;
+          }
+          for (var key in attrs) {
+            if (Object.prototype.hasOwnProperty.call(attrs, key) && attrs[key])
+              return key + ": " + attrs[key];
+          }
+          return "";
+        }
+        function elementLabel(el) {
+          var attrs = dataAttributes(el);
+          return normalizedText(
+            el.getAttribute("aria-label") ||
+              el.getAttribute("title") ||
+              el.getAttribute("data-label") ||
+              el.getAttribute("data-note") ||
+              el.getAttribute("data-key") ||
+              el.getAttribute("alt") ||
+              el.value ||
+              el.textContent ||
+              firstDataLabel(attrs) ||
+              "",
+            120,
+          );
+        }
+        function isElementVisible(el) {
+          if (!el || el.hidden || el.getAttribute("aria-hidden") === "true")
+            return false;
+          var style = window.getComputedStyle
+            ? window.getComputedStyle(el)
+            : null;
+          if (
+            style &&
+            (style.display === "none" || style.visibility === "hidden")
+          )
+            return false;
+          return !!(
+            el.offsetWidth ||
+            el.offsetHeight ||
+            (el.getClientRects && el.getClientRects().length)
+          );
+        }
+        function elementBounds(el) {
+          var rect =
+            el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+          if (!rect) return null;
+          return {
+            x: Math.round(rect.x || rect.left || 0),
+            y: Math.round(rect.y || rect.top || 0),
+            width: Math.round(rect.width || 0),
+            height: Math.round(rect.height || 0),
+          };
+        }
+        function elementCenter(el) {
+          var rect =
+            el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+          if (!rect) return { x: 0, y: 0 };
+          return {
+            x: (rect.left || 0) + (rect.width || 0) / 2,
+            y: (rect.top || 0) + (rect.height || 0) / 2,
+          };
+        }
+        function classSummary(el) {
+          return (
+            normalizedText(
+              typeof el.className === "string" ? el.className : "",
+              120,
+            ) || null
+          );
+        }
+        function isScrollableElement(el) {
+          if (!el) return false;
+          if (isRangeInput(el)) return false;
+          var style = window.getComputedStyle
+            ? window.getComputedStyle(el)
+            : null;
+          var overflow = style
+            ? [style.overflow, style.overflowX, style.overflowY].join(" ")
+            : "";
+          return (
+            /(auto|scroll)/.test(overflow) ||
+            (el.scrollHeight &&
+              el.clientHeight &&
+              el.scrollHeight > el.clientHeight + 2) ||
+            (el.scrollWidth &&
+              el.clientWidth &&
+              el.scrollWidth > el.clientWidth + 2)
+          );
+        }
+        function isEditableElement(el) {
+          var tag = String(el.tagName || "").toLowerCase();
+          var type = String(el.getAttribute("type") || "").toLowerCase();
+          if (tag === "textarea") return true;
+          if (
+            tag === "input" &&
+            [
+              "button",
+              "checkbox",
+              "color",
+              "file",
+              "image",
+              "radio",
+              "range",
+              "reset",
+              "submit",
+            ].indexOf(type) === -1
+          )
+            return true;
+          return (
+            el.isContentEditable === true ||
+            el.getAttribute("contenteditable") === "true"
+          );
+        }
+        function isRangeInput(el) {
+          return (
+            String((el && el.tagName) || "").toLowerCase() === "input" &&
+            String(el.getAttribute("type") || "").toLowerCase() === "range"
+          );
+        }
+        function hasActionData(attrs) {
+          for (var key in attrs) {
+            if (!Object.prototype.hasOwnProperty.call(attrs, key)) continue;
+            if (
+              DATA_ACTION_HINTS[key] ||
+              /^note/i.test(key) ||
+              /^key/i.test(key) ||
+              /^midi/i.test(key) ||
+              /^action/i.test(key)
+            )
+              return true;
+          }
+          return false;
+        }
+        function operability(el, style, attrs) {
+          var tag = String(el.tagName || "").toLowerCase();
+          var role = normalizedText(el.getAttribute("role") || "", 40);
+          var reasons = [];
+          if (
+            tag === "button" ||
+            tag === "input" ||
+            tag === "select" ||
+            tag === "textarea"
+          )
+            reasons.push("native-control");
+          if (tag === "a" && el.getAttribute("href")) reasons.push("link");
+          if (role && INTERACTIVE_ROLES[role])
+            reasons.push("interactive-role:" + role);
+          if (el.getAttribute("tabindex") !== null) reasons.push("tabindex");
+          if (el.getAttribute("contenteditable") === "true")
+            reasons.push("contenteditable");
+          if (
+            el.getAttribute("onclick") ||
+            el.getAttribute("onmousedown") ||
+            el.getAttribute("ontouchstart")
+          )
+            reasons.push("inline-handler");
+          if (hasActionData(attrs)) reasons.push("data-action-hint");
+          var cls = classSummary(el) || "";
+          if (
+            /\b(btn|button|key|piano|control|slider|toggle|switch|tab|option|tile|item)\b/i.test(
+              cls,
+            )
+          )
+            reasons.push("class-action-hint");
+          if (style && style.cursor === "pointer")
+            reasons.push("cursor-pointer");
+          if (isEditableElement(el)) reasons.push("editable");
+          if (isScrollableElement(el)) reasons.push("scrollable");
+          return {
+            operable: reasons.length > 0,
+            reasons: reasons,
+          };
+        }
+        function actionKindsFor(el, op) {
+          var actions = [];
+          if (op.operable) actions.push("click");
+          if (isEditableElement(el)) actions.push("type");
+          if (isScrollableElement(el)) actions.push("scroll");
+          var role = normalizedText(el.getAttribute("role") || "", 40);
+          var cls = classSummary(el) || "";
+          if (
+            isRangeInput(el) ||
+            role === "slider" ||
+            /\b(slider|thumb|handle|draggable|knob)\b/i.test(cls)
+          )
+            actions.push("drag");
+          return actions;
+        }
+        function actionElementId(el) {
+          var id = el.getAttribute(ACTION_ID_ATTR);
+          if (id) return id;
+          elementSeq += 1;
+          id = "el_" + elementSeq;
+          el.setAttribute(ACTION_ID_ATTR, id);
+          return id;
+        }
+        function describeNode(el, includeElementId) {
+          var style = window.getComputedStyle
+            ? window.getComputedStyle(el)
+            : null;
+          var attrs = dataAttributes(el);
+          var op = operability(el, style, attrs);
+          var item = {
+            tagName: String(el.tagName || "").toLowerCase(),
+            role: el.getAttribute("role") || null,
+            id: normalizedText(el.id || "", 80) || null,
+            className: classSummary(el),
+            label: elementLabel(el) || null,
+            text: normalizedText(el.textContent || "", 160) || null,
+            disabled:
+              el.disabled === true ||
+              el.getAttribute("aria-disabled") === "true",
+            type: el.getAttribute("type") || null,
+            value: normalizedText(el.value || "", 80) || null,
+            dataAttributes: Object.keys(attrs).length ? attrs : null,
+            bounds: elementBounds(el),
+            operableCandidate: op.operable,
+            operabilityReasons: op.reasons,
+            actions: actionKindsFor(el, op),
+          };
+          if (includeElementId || op.operable)
+            item.elementId = actionElementId(el);
+          if (attrs.note) item.note = attrs.note;
+          if (attrs.key) item.key = attrs.key;
+          if (attrs.midi) item.midi = attrs.midi;
+          return item;
+        }
+        function visibleDomNodes() {
+          var source = document.body
+            ? document.body.getElementsByTagName("*")
+            : [];
+          var nodes = [];
+          var visibleCount = 0;
+          for (var i = 0; i < source.length; i += 1) {
+            var el = source[i];
+            if (!isElementVisible(el)) continue;
+            visibleCount += 1;
+            if (nodes.length < DOM_SCAN_LIMIT) nodes.push(el);
+          }
+          return {
+            nodes: nodes,
+            visibleCount: visibleCount,
+            totalCount: source.length,
+          };
+        }
+        function inlineScriptSummaries() {
+          var scripts = document.scripts || [];
+          var out = [];
+          for (var i = 0; i < scripts.length && out.length < 4; i += 1) {
+            if (scripts[i].getAttribute("data-hana-host-script")) continue;
+            var text = normalizedText(scripts[i].textContent || "", 900);
+            if (!text) continue;
+            out.push({ index: i, text: text });
+          }
+          return out;
+        }
+        function describeDom() {
+          var visible = visibleDomNodes();
+          var outline = [];
+          for (
+            var i = 0;
+            i < visible.nodes.length && outline.length < DOM_OUTLINE_LIMIT;
+            i += 1
+          ) {
+            outline.push(describeNode(visible.nodes[i], false));
+          }
+          return {
+            domStatus: "available",
+            webViewSurface: {
+              officialName: "WebView",
+              implementation: "sandboxed-iframe",
+              source: "current-card-frame",
+            },
+            outline: outline,
+            visibleNodeCount: visible.visibleCount,
+            totalNodeCount: visible.totalCount,
+            truncated: visible.visibleCount > outline.length,
+            scripts: inlineScriptSummaries(),
+            agentHint:
+              "This DOM comes from the current Hana card WebView/iframe. Use describe_elements and click_element for visible UI operations; do not inspect this card with an external browser.",
+          };
+        }
+        function describeElements() {
+          var visible = visibleDomNodes();
+          var elements = [];
+          for (
+            var i = 0;
+            i < visible.nodes.length && elements.length < ACTION_NODE_LIMIT;
+            i += 1
+          ) {
+            var item = describeNode(visible.nodes[i], false);
+            if (!item.operableCandidate) continue;
+            elements.push(item);
+          }
+          var status =
+            elements.length > 0 ? "available" : "no_operable_elements";
+          return {
+            interactiveElementsStatus: status,
+            elements: elements,
+            count: elements.length,
+            visibleNodeCount: visible.visibleCount,
+            truncated:
+              visible.visibleCount > visible.nodes.length ||
+              elements.length >= ACTION_NODE_LIMIT,
+            domInspectionAvailable: true,
+            nextAction: elements.length > 0 ? null : "ui_action.describe_dom",
+            reason:
+              elements.length > 0
+                ? null
+                : "No visible operable DOM targets were inferred. Read the same card WebView DOM with ui_action describe_dom before trying other tools.",
+            agentHint:
+              "Operate visible elements from this Hana card WebView. Do not use an external browser to inspect this card.",
+          };
+        }
+        function findActionElement(elementId) {
+          var nodes = document.querySelectorAll("[" + ACTION_ID_ATTR + "]");
+          for (var i = 0; i < nodes.length; i += 1) {
+            if (nodes[i].getAttribute(ACTION_ID_ATTR) === elementId)
+              return nodes[i];
+          }
+          return null;
+        }
+        function pointerEventInitAt(type, x, y) {
+          var down = type === "pointerdown" || type === "mousedown";
+          return {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            pointerId: 1,
+            pointerType: "mouse",
+            isPrimary: true,
+            button: 0,
+            buttons: down ? 1 : 0,
+            clientX: x,
+            clientY: y,
+            screenX: x,
+            screenY: y,
+          };
+        }
+        function pointerEventInit(el, type) {
+          var center = elementCenter(el);
+          return pointerEventInitAt(type, center.x, center.y);
+        }
+        function dispatchPointerTo(target, type, x, y) {
+          var event;
+          var init = pointerEventInitAt(type, x, y);
+          try {
+            if (window.PointerEvent) {
+              event = new PointerEvent(type, init);
+            }
+          } catch (_) {
+            event = null;
+          }
+          if (!event) {
+            try {
+              event = new MouseEvent(type, init);
+            } catch (_) {
+              event = document.createEvent("MouseEvents");
+              event.initEvent(type, true, true);
+            }
+          }
+          target.dispatchEvent(event);
+        }
+        function dispatchPointer(el, type) {
+          var center = elementCenter(el);
+          dispatchPointerTo(el, type, center.x, center.y);
+        }
+        function delay(ms) {
+          return new Promise(function (resolve) {
+            window.setTimeout(resolve, ms);
+          });
+        }
+        function normalizeIntervalMs(value) {
+          var n =
+            typeof value === "number" && isFinite(value)
+              ? Math.round(value)
+              : DEFAULT_SEQUENCE_INTERVAL_MS;
+          if (n < MIN_SEQUENCE_INTERVAL_MS) return MIN_SEQUENCE_INTERVAL_MS;
+          if (n > MAX_SEQUENCE_INTERVAL_MS) return MAX_SEQUENCE_INTERVAL_MS;
+          return n;
+        }
+        function normalizeElementIds(value) {
+          var source = Array.isArray(value) ? value : [];
+          var out = [];
+          for (
+            var i = 0;
+            i < source.length && out.length < MAX_SEQUENCE_STEPS;
+            i += 1
+          ) {
+            var id = normalizedText(String(source[i] || ""), 200);
+            if (id) out.push(id);
+          }
+          return out;
+        }
+        function makeActionRunId() {
+          return (
+            "uiarun_" +
+            Date.now().toString(36) +
+            "_" +
+            Math.random().toString(36).slice(2, 8)
+          );
+        }
+        function isoNow() {
+          return new Date().toISOString();
+        }
+        function sequenceRunError(message, code, result) {
+          return Object.assign(new Error(message), {
+            code: code || "UI_ACTION_SEQUENCE_FAILED",
+            result: result || null,
+          });
+        }
+        function clickElement(elementId) {
+          var el = findActionElement(elementId);
+          if (!el)
+            throw Object.assign(
+              new Error("Interactive element not found: " + elementId),
+              { code: "UI_ACTION_ELEMENT_NOT_FOUND" },
+            );
+          if (
+            el.disabled === true ||
+            el.getAttribute("aria-disabled") === "true"
+          ) {
+            throw Object.assign(
+              new Error("Interactive element is disabled: " + elementId),
+              { code: "UI_ACTION_ELEMENT_DISABLED" },
+            );
+          }
+          setKeyboardActive(true);
+          // 焦点中立：iframe 内 focus 会把整页焦点从用户输入框抢进卡片；
+          // 事件直达目标无需焦点，按压视觉由 data-hana-ui-action-pressed 承担
+          if (typeof el.scrollIntoView === "function")
+            el.scrollIntoView({ block: "nearest", inline: "nearest" });
+          el.setAttribute("data-hana-ui-action-pressed", "true");
+          try {
+            dispatchPointer(el, "pointerdown");
+            dispatchPointer(el, "mousedown");
+          } catch (err) {
+            el.removeAttribute("data-hana-ui-action-pressed");
+            throw err;
+          }
+          return delay(ACTION_PRESS_MS).then(
+            function () {
+              try {
+                dispatchPointer(el, "mouseup");
+                dispatchPointer(el, "pointerup");
+                if (typeof el.click === "function") el.click();
+                else dispatchPointer(el, "click");
+                return {
+                  clickedElementId: elementId,
+                  label: elementLabel(el) || null,
+                  visiblePressMs: ACTION_PRESS_MS,
+                  operation: "visible_dom_click",
+                  playbackConfirmed: false,
+                  audioContextState: currentAudioContextState(),
+                  agentHint:
+                    "The visible DOM element was clicked in the current card WebView. ok=true means the UI operation completed; playbackConfirmed=false only means this bridge has no audio/business-effect sensor.",
+                };
+              } finally {
+                el.removeAttribute("data-hana-ui-action-pressed");
+              }
+            },
+            function (err) {
+              el.removeAttribute("data-hana-ui-action-pressed");
+              throw err;
+            },
+          );
+        }
+        function clampSequenceNumber(value, fallback, min, max) {
+          var n =
+            typeof value === "number" && isFinite(value)
+              ? Math.round(value)
+              : fallback;
+          if (n < min) return min;
+          if (n > max) return max;
+          return n;
+        }
+        /** steps 时间轴归一化（与 shared/ui-action-sequence 同一契约的 ES5 防御副本）：
+      每步 { atMs 起点, holdMs 按住时长, elementIds 同时按下的元素 }。
+      缺省 atMs = 上一步起点 + intervalMs，即旧的匀速序列是它的特例。 */
+        function normalizeSequenceSteps(rawSteps, elementIds, intervalMs) {
+          var interval = normalizeIntervalMs(intervalMs);
+          var steps = [];
+          if (Array.isArray(rawSteps) && rawSteps.length) {
+            var previousAtMs = null;
+            for (
+              var i = 0;
+              i < rawSteps.length && steps.length < MAX_SEQUENCE_STEPS;
+              i += 1
+            ) {
+              var raw =
+                rawSteps[i] && typeof rawSteps[i] === "object"
+                  ? rawSteps[i]
+                  : {};
+              var ids = normalizeElementIds(
+                Array.isArray(raw.elementIds)
+                  ? raw.elementIds
+                  : [raw.elementId],
+              );
+              if (!ids.length) {
+                throw Object.assign(
+                  new Error(
+                    "click_sequence step " +
+                      (i + 1) +
+                      " requires elementId or elementIds.",
+                  ),
+                  { code: "UI_ACTION_ELEMENT_IDS_REQUIRED" },
+                );
+              }
+              if (ids.length > MAX_SEQUENCE_CHORD_SIZE)
+                ids = ids.slice(0, MAX_SEQUENCE_CHORD_SIZE);
+              var defaultAtMs =
+                previousAtMs === null ? 0 : previousAtMs + interval;
+              var atMs = clampSequenceNumber(
+                raw.atMs,
+                defaultAtMs,
+                0,
+                MAX_SEQUENCE_TOTAL_MS,
+              );
+              var holdMs = clampSequenceNumber(
+                raw.holdMs,
+                ACTION_PRESS_MS,
+                MIN_SEQUENCE_HOLD_MS,
+                MAX_SEQUENCE_HOLD_MS,
+              );
+              previousAtMs = atMs;
+              steps.push({
+                atMs: atMs,
+                holdMs: holdMs,
+                elementIds: ids,
+                step: steps.length + 1,
+              });
+            }
+            return steps;
+          }
+          var flat = normalizeElementIds(elementIds);
+          for (var j = 0; j < flat.length; j += 1) {
+            steps.push({
+              atMs: j * interval,
+              holdMs: ACTION_PRESS_MS,
+              elementIds: [flat[j]],
+              step: j + 1,
+            });
+          }
+          return steps;
+        }
+        function pressActionElementDown(el) {
+          setKeyboardActive(true);
+          // 焦点中立：iframe 内 focus 会把整页焦点从用户输入框抢进卡片；
+          // 事件直达目标无需焦点，按压视觉由 data-hana-ui-action-pressed 承担
+          if (typeof el.scrollIntoView === "function")
+            el.scrollIntoView({ block: "nearest", inline: "nearest" });
+          el.setAttribute("data-hana-ui-action-pressed", "true");
+          dispatchPointer(el, "pointerdown");
+          dispatchPointer(el, "mousedown");
+        }
+        function releaseActionElementUp(el) {
+          try {
+            dispatchPointer(el, "mouseup");
+            dispatchPointer(el, "pointerup");
+            if (typeof el.click === "function") el.click();
+            else dispatchPointer(el, "click");
+          } finally {
+            el.removeAttribute("data-hana-ui-action-pressed");
+          }
+        }
+        /** 中断清理：任何失败路径都不允许把元素留在"按住"状态。 */
+        function releasePressedElements(pressed) {
+          for (var i = 0; i < pressed.length; i += 1) {
+            try {
+              releaseActionElementUp(pressed[i]);
+            } catch (_) {
+              /* cleanup path */
+            }
+          }
+          pressed.length = 0;
+        }
+        function clickElementSequence(
+          rawSteps,
+          elementIds,
+          intervalMs,
+          actionRunId,
+        ) {
+          var steps = normalizeSequenceSteps(rawSteps, elementIds, intervalMs);
+          if (!steps.length)
+            throw Object.assign(
+              new Error("click_sequence requires steps or element ids."),
+              { code: "UI_ACTION_ELEMENT_IDS_REQUIRED" },
+            );
+          var interval = normalizeIntervalMs(intervalMs);
+          var expectedDurationMs = 0;
+          steps.forEach(function (step) {
+            if (step.atMs + step.holdMs > expectedDurationMs)
+              expectedDurationMs = step.atMs + step.holdMs;
+          });
+          var run = {
+            actionRunId:
+              normalizedText(String(actionRunId || ""), 200) ||
+              makeActionRunId(),
+            startedAt: isoNow(),
+            startedAtMs: Date.now(),
+            expectedDurationMs: expectedDurationMs,
+            clicked: [],
+          };
+          var flatIds = [];
+          steps.forEach(function (step) {
+            step.els = [];
+            step.elementIds.forEach(function (elementId) {
+              flatIds.push(elementId);
+              var el = findActionElement(elementId);
+              if (!el)
+                throw Object.assign(
+                  new Error("Interactive element not found: " + elementId),
+                  { code: "UI_ACTION_ELEMENT_NOT_FOUND" },
+                );
+              if (
+                el.disabled === true ||
+                el.getAttribute("aria-disabled") === "true"
+              ) {
+                throw Object.assign(
+                  new Error("Interactive element is disabled: " + elementId),
+                  { code: "UI_ACTION_ELEMENT_DISABLED" },
+                );
+              }
+              step.els.push(el);
+            });
+          });
+          function finishRun(status, failedAtStep, error) {
+            var finishedAt = isoNow();
+            return {
+              actionRunId: run.actionRunId,
+              status: status,
+              startedAt: run.startedAt,
+              finishedAt: finishedAt,
+              expectedDurationMs: run.expectedDurationMs,
+              estimatedDurationMs: run.expectedDurationMs,
+              durationMs: Math.max(0, Date.now() - run.startedAtMs),
+              totalSteps: steps.length,
+              completedSteps: run.clicked.length,
+              currentStep:
+                status === "completed"
+                  ? steps.length
+                  : Math.max(
+                      0,
+                      Math.min(
+                        steps.length,
+                        failedAtStep || run.clicked.length,
+                      ),
+                    ),
+              clickedElementIds: flatIds,
+              clicked: run.clicked.slice(),
+              count: run.clicked.length,
+              intervalMs: interval,
+              failedAtStep: failedAtStep || null,
+              error: error || null,
+              visiblePressMs: ACTION_PRESS_MS,
+              operation: "visible_dom_click_sequence",
+              playbackConfirmed: false,
+              audioContextState: currentAudioContextState(),
+              agentHint:
+                status === "completed"
+                  ? "Visible DOM elements were clicked in sequence in the current card WebView. ok=true means the visible sequence completed; playbackConfirmed=false only means this bridge has no audio/business-effect sensor."
+                  : "The visible click sequence stopped before completion. The run record reports how many steps completed and where it failed.",
+            };
+          }
+          // 时间轴 → 事件表：每步一个 down 与一个 up；同刻先 up 后 down，
+          // 连音（上一音释放与下一音按下同刻）不会自我重叠。
+          var events = [];
+          steps.forEach(function (step) {
+            events.push({ t: step.atMs, kind: "down", step: step });
+            events.push({ t: step.atMs + step.holdMs, kind: "up", step: step });
+          });
+          events.sort(function (a, b) {
+            if (a.t !== b.t) return a.t - b.t;
+            if (a.kind !== b.kind) return a.kind === "up" ? -1 : 1;
+            return a.step.step - b.step.step;
+          });
+          var pressed = [];
+          var chain = Promise.resolve();
+          events.forEach(function (event) {
+            chain = chain.then(function () {
+              // 相对起点的绝对时间校准：长序列不累计 setTimeout 漂移
+              var waitMs = Math.max(
+                0,
+                event.t - (Date.now() - run.startedAtMs),
+              );
+              return delay(waitMs).then(function () {
+                if (event.kind === "down") {
+                  event.step.els.forEach(function (el) {
+                    pressActionElementDown(el);
+                    pressed.push(el);
+                  });
+                  return;
+                }
+                event.step.els.forEach(function (el) {
+                  releaseActionElementUp(el);
+                  var at = pressed.indexOf(el);
+                  if (at >= 0) pressed.splice(at, 1);
+                });
+                run.clicked.push({
+                  step: event.step.step,
+                  elementId: event.step.elementIds[0],
+                  elementIds: event.step.elementIds.slice(),
+                  label: elementLabel(event.step.els[0]) || null,
+                  atMs: event.step.atMs,
+                  holdMs: event.step.holdMs,
+                  completedAt: isoNow(),
+                });
+              });
+            });
+          });
+          return chain.then(
+            function () {
+              return finishRun("completed", null, null);
+            },
+            function (err) {
+              releasePressedElements(pressed);
+              var failure = finishRun(
+                "failed",
+                run.clicked.length + 1,
+                err && err.message ? err.message : "Sequence step failed.",
+              );
+              throw sequenceRunError(
+                failure.error,
+                err && err.code ? err.code : "UI_ACTION_SEQUENCE_FAILED",
+                failure,
+              );
+            },
+          );
+        }
+        function dispatchSimpleEvent(el, type) {
+          var event;
+          try {
+            event = new Event(type, { bubbles: true, cancelable: true });
+          } catch (_) {
+            event = document.createEvent("Events");
+            event.initEvent(type, true, true);
+          }
+          el.dispatchEvent(event);
+        }
+        function numberAttr(el, attr, fallback) {
+          var parsed = Number(el.getAttribute(attr));
+          return isFinite(parsed) ? parsed : fallback;
+        }
+        function decimalPlaces(value) {
+          var text = String(value);
+          if (text.indexOf("e-") >= 0) return Number(text.split("e-")[1]) || 0;
+          var dot = text.indexOf(".");
+          return dot >= 0 ? text.length - dot - 1 : 0;
+        }
+        function formatRangeValue(value, step) {
+          var places =
+            step && isFinite(step) ? Math.min(6, decimalPlaces(step)) : 0;
+          var rounded =
+            places > 0 ? value.toFixed(places) : String(Math.round(value));
+          return String(Number(rounded));
+        }
+        function rangeValueForClientX(el, clientX) {
+          var rect = el.getBoundingClientRect
+            ? el.getBoundingClientRect()
+            : null;
+          var min = numberAttr(el, "min", 0);
+          var max = numberAttr(el, "max", 100);
+          var stepAttr = el.getAttribute("step");
+          var step = stepAttr === "any" ? 0 : numberAttr(el, "step", 1);
+          if (!rect || !rect.width || max <= min)
+            return el.value || formatRangeValue(min, step);
+          var ratio = Math.max(
+            0,
+            Math.min(1, (clientX - rect.left) / rect.width),
+          );
+          var next = min + (max - min) * ratio;
+          if (step > 0) next = min + Math.round((next - min) / step) * step;
+          next = Math.max(min, Math.min(max, next));
+          return formatRangeValue(next, step);
+        }
+        function setRangeInputValueFromPoint(el, clientX, commit) {
+          var before = el.value;
+          var next = rangeValueForClientX(el, clientX);
+          if (el.value !== next) {
+            el.value = next;
+            dispatchSimpleEvent(el, "input");
+          }
+          if (commit) dispatchSimpleEvent(el, "change");
+          return { before: before, after: el.value };
+        }
+        function rangeStepValue(el) {
+          var stepAttr = el.getAttribute("step");
+          if (stepAttr === "any") return 1;
+          var step = numberAttr(el, "step", 1);
+          return step > 0 ? step : 1;
+        }
+        function setRangeInputValue(el, value, commit) {
+          var min = numberAttr(el, "min", 0);
+          var max = numberAttr(el, "max", 100);
+          var step = rangeStepValue(el);
+          var before = el.value;
+          var next = Math.max(min, Math.min(max, value));
+          if (step > 0) next = min + Math.round((next - min) / step) * step;
+          next = Math.max(min, Math.min(max, next));
+          var formatted = formatRangeValue(next, step);
+          if (el.value !== formatted) {
+            el.value = formatted;
+            dispatchSimpleEvent(el, "input");
+          }
+          if (commit) dispatchSimpleEvent(el, "change");
+          return { before: before, after: el.value };
+        }
+        function setRangeInputValueFromKey(el, key) {
+          var min = numberAttr(el, "min", 0);
+          var max = numberAttr(el, "max", 100);
+          var step = rangeStepValue(el);
+          var current = Number(el.value);
+          if (!isFinite(current)) current = min;
+          var next = current;
+          if (key === "ArrowRight" || key === "ArrowUp") next = current + step;
+          else if (key === "ArrowLeft" || key === "ArrowDown")
+            next = current - step;
+          else if (key === "PageUp") next = current + step * 10;
+          else if (key === "PageDown") next = current - step * 10;
+          else if (key === "Home") next = min;
+          else if (key === "End") next = max;
+          else return null;
+          return setRangeInputValue(el, next, true);
+        }
+        function typeText(elementId, text) {
+          var el = findActionElement(elementId);
+          if (!el)
+            throw Object.assign(
+              new Error("Interactive element not found: " + elementId),
+              { code: "UI_ACTION_ELEMENT_NOT_FOUND" },
+            );
+          if (
+            el.disabled === true ||
+            el.getAttribute("aria-disabled") === "true"
+          ) {
+            throw Object.assign(
+              new Error("Interactive element is disabled: " + elementId),
+              { code: "UI_ACTION_ELEMENT_DISABLED" },
+            );
+          }
+          if (!isEditableElement(el)) {
+            throw Object.assign(
+              new Error("Interactive element is not editable: " + elementId),
+              { code: "UI_ACTION_ELEMENT_NOT_EDITABLE" },
+            );
+          }
+          var nextText = typeof text === "string" ? text.slice(0, 4000) : "";
+          if (!nextText)
+            throw Object.assign(new Error("type_text requires text."), {
+              code: "UI_ACTION_TEXT_REQUIRED",
+            });
+          setKeyboardActive(true);
+          if (
+            String(el.tagName || "").toLowerCase() === "input" ||
+            String(el.tagName || "").toLowerCase() === "textarea"
+          ) {
+            el.value = String(el.value || "") + nextText;
+          } else {
+            el.textContent = String(el.textContent || "") + nextText;
+          }
+          dispatchSimpleEvent(el, "input");
+          dispatchSimpleEvent(el, "change");
+          return {
+            typedElementId: elementId,
+            label: elementLabel(el) || null,
+            textLength: nextText.length,
+            operation: "visible_dom_type_text",
+            agentHint:
+              "Text was inserted into a visible editable element in the current card WebView.",
+          };
+        }
+        function scrollElement(elementId, scrollX, scrollY) {
+          var el = elementId ? findActionElement(elementId) : null;
+          if (elementId && !el)
+            throw Object.assign(
+              new Error("Interactive element not found: " + elementId),
+              { code: "UI_ACTION_ELEMENT_NOT_FOUND" },
+            );
+          var x =
+            typeof scrollX === "number" && isFinite(scrollX)
+              ? Math.round(scrollX)
+              : 0;
+          var y =
+            typeof scrollY === "number" && isFinite(scrollY)
+              ? Math.round(scrollY)
+              : 320;
+          if (el) {
+            if (typeof el.scrollBy === "function")
+              el.scrollBy({ left: x, top: y, behavior: "auto" });
+            else {
+              el.scrollLeft = (el.scrollLeft || 0) + x;
+              el.scrollTop = (el.scrollTop || 0) + y;
+            }
+            dispatchSimpleEvent(el, "scroll");
+          } else if (typeof window.scrollBy === "function") {
+            window.scrollBy(x, y);
+          } else {
+            var doc =
+              document.scrollingElement ||
+              document.documentElement ||
+              document.body;
+            if (doc) {
+              doc.scrollLeft = (doc.scrollLeft || 0) + x;
+              doc.scrollTop = (doc.scrollTop || 0) + y;
+            }
+          }
+          return {
+            scrolledElementId: elementId || null,
+            scrollX: x,
+            scrollY: y,
+            operation: "visible_dom_scroll",
+            agentHint:
+              "The current card WebView was scrolled. Scroll position changes are page-dependent.",
+          };
+        }
+        function dragElement(
+          elementId,
+          targetElementId,
+          deltaX,
+          deltaY,
+          durationMs,
+        ) {
+          var startEl = findActionElement(elementId);
+          if (!startEl)
+            throw Object.assign(
+              new Error("Interactive element not found: " + elementId),
+              { code: "UI_ACTION_ELEMENT_NOT_FOUND" },
+            );
+          var targetEl = targetElementId
+            ? findActionElement(targetElementId)
+            : null;
+          if (targetElementId && !targetEl)
+            throw Object.assign(
+              new Error("Drag target element not found: " + targetElementId),
+              { code: "UI_ACTION_ELEMENT_NOT_FOUND" },
+            );
+          var start = elementCenter(startEl);
+          var end = targetEl
+            ? elementCenter(targetEl)
+            : {
+                x:
+                  start.x +
+                  (typeof deltaX === "number" && isFinite(deltaX) ? deltaX : 0),
+                y:
+                  start.y +
+                  (typeof deltaY === "number" && isFinite(deltaY) ? deltaY : 0),
+              };
+          if (start.x === end.x && start.y === end.y) {
+            throw Object.assign(
+              new Error("drag_element requires a non-zero movement."),
+              { code: "UI_ACTION_DRAG_TARGET_REQUIRED" },
+            );
+          }
+          var duration = normalizeIntervalMs(durationMs || 320);
+          var steps = Math.max(3, Math.min(24, Math.round(duration / 40)));
+          var perStep = Math.max(16, Math.round(duration / steps));
+          var isNativeRange = isRangeInput(startEl);
+          var valueBefore = isNativeRange ? startEl.value : null;
+          var rangeValueAfter = null;
+          setKeyboardActive(true);
+          startEl.setAttribute("data-hana-ui-action-pressed", "true");
+          try {
+            dispatchPointerTo(startEl, "pointerdown", start.x, start.y);
+            dispatchPointerTo(startEl, "mousedown", start.x, start.y);
+          } catch (err) {
+            startEl.removeAttribute("data-hana-ui-action-pressed");
+            throw err;
+          }
+          var chain = Promise.resolve();
+          for (var i = 1; i <= steps; i += 1) {
+            (function (step) {
+              chain = chain.then(function () {
+                var t = step / steps;
+                var x = start.x + (end.x - start.x) * t;
+                var y = start.y + (end.y - start.y) * t;
+                dispatchPointerTo(startEl, "pointermove", x, y);
+                dispatchPointerTo(startEl, "mousemove", x, y);
+                if (isNativeRange)
+                  rangeValueAfter = setRangeInputValueFromPoint(
+                    startEl,
+                    x,
+                    false,
+                  ).after;
+                return delay(perStep);
+              });
+            })(i);
+          }
+          return chain.then(
+            function () {
+              try {
+                if (isNativeRange)
+                  rangeValueAfter = setRangeInputValueFromPoint(
+                    startEl,
+                    end.x,
+                    true,
+                  ).after;
+                dispatchPointerTo(startEl, "mouseup", end.x, end.y);
+                dispatchPointerTo(startEl, "pointerup", end.x, end.y);
+                return {
+                  draggedElementId: elementId,
+                  targetElementId: targetElementId || null,
+                  deltaX: Math.round(end.x - start.x),
+                  deltaY: Math.round(end.y - start.y),
+                  durationMs: duration,
+                  steps: steps,
+                  valueBefore: valueBefore,
+                  valueAfter: rangeValueAfter,
+                  operation: isNativeRange
+                    ? "visible_dom_range_drag"
+                    : "visible_dom_drag",
+                  agentHint: isNativeRange
+                    ? "A native range input was visibly dragged and its DOM value was updated with input/change events in the current card WebView."
+                    : "A visible element was dragged inside the current card WebView. Page-side effects are not separately confirmed by this bridge.",
+                };
+              } finally {
+                startEl.removeAttribute("data-hana-ui-action-pressed");
+              }
+            },
+            function (err) {
+              startEl.removeAttribute("data-hana-ui-action-pressed");
+              throw err;
+            },
+          );
+        }
+        function dispatchKeyboard(target, type, key) {
+          var event;
+          try {
+            event = new KeyboardEvent(type, {
+              key: key,
+              bubbles: true,
+              cancelable: true,
+            });
+          } catch (_) {
+            event = document.createEvent("Events");
+            event.initEvent(type, true, true);
+            event.key = key;
+          }
+          target.dispatchEvent(event);
+        }
+        function pressKeys(keys, elementId) {
+          if (!Array.isArray(keys) || keys.length === 0) {
+            throw Object.assign(
+              new Error("press_key requires at least one key."),
+              { code: "UI_ACTION_KEY_REQUIRED" },
+            );
+          }
+          setKeyboardActive(true);
+          var explicitTarget = elementId ? findActionElement(elementId) : null;
+          if (elementId && !explicitTarget) {
+            throw Object.assign(
+              new Error("Interactive element not found: " + elementId),
+              { code: "UI_ACTION_ELEMENT_NOT_FOUND" },
+            );
+          }
+          if (
+            explicitTarget &&
+            (explicitTarget.disabled === true ||
+              explicitTarget.getAttribute("aria-disabled") === "true")
+          ) {
+            throw Object.assign(
+              new Error("Interactive element is disabled: " + elementId),
+              { code: "UI_ACTION_ELEMENT_DISABLED" },
+            );
+          }
+          var target =
+            explicitTarget ||
+            document.activeElement ||
+            document.body ||
+            document.documentElement;
+          var pressed = [];
+          var rangeChanges = [];
+          for (var i = 0; i < keys.length && i < 32; i += 1) {
+            var key = normalizedText(String(keys[i] || ""), 32);
+            if (!key) continue;
+            dispatchKeyboard(target, "keydown", key);
+            dispatchKeyboard(target, "keypress", key);
+            if (isRangeInput(target)) {
+              var change = setRangeInputValueFromKey(target, key);
+              if (change)
+                rangeChanges.push({
+                  key: key,
+                  valueBefore: change.before,
+                  valueAfter: change.after,
+                });
+            }
+            dispatchKeyboard(target, "keyup", key);
+            pressed.push(key);
+          }
+          return {
+            pressedKeys: pressed,
+            targetElementId:
+              elementId ||
+              (target && target.getAttribute
+                ? target.getAttribute(ACTION_ID_ATTR)
+                : null) ||
+              null,
+            rangeChanges: rangeChanges,
+            operation: "synthetic_keyboard_events",
+            playbackConfirmed: false,
+            agentHint:
+              "Keyboard events were dispatched to the current card WebView. If the target is a native range input, standard range key values are reflected with input/change events. playbackConfirmed=false only means this bridge has no audio/business-effect sensor.",
+          };
+        }
+        // 宿主告诉卡片"这张卡的高度由谁决定"：聊天里由内容决定（content），钉在
+        // 黑板上或拆成独立窗口时由画框决定（viewport）。这里只把答案记在根元素上，
+        // 供卡片自己的 CSS 取用；高度测量与上报的逻辑一个字都不碰。
+        // 卡片必须把全高规则挂在 [data-card-sizing="viewport"] 下：内容定高的语境里
+        // 无条件声明视口高度会让内容永远不矮于画框，画框跟着长高，两者互相推着涨。
+        function applySizingMode(mode) {
+          var root = document.documentElement;
+          if (!root) return;
+          if (mode === "viewport" || mode === "content")
+            root.setAttribute("data-card-sizing", mode);
+          else root.removeAttribute("data-card-sizing");
+        }
+        function postActionResult(requestId, ok, payload) {
+          window.parent.postMessage(
+            Object.assign(
+              {
+                type: ACTION_RESULT_MSG,
+                requestId: requestId,
+                ok: ok,
+              },
+              payload || {},
+            ),
+            "*",
+          );
+        }
+        window.addEventListener("message", function (e) {
+          if (!e.data) return;
+          if (e.data.type === MSG) {
+            setKeyboardActive(e.data.active);
+            return;
+          }
+          if (e.data.type === SIZING_MSG) {
+            sizingAnswered = true;
+            applySizingMode(e.data.mode);
+            return;
+          }
+          if (e.data.type === STATE_SNAPSHOT_REQUEST_MSG) {
+            postStateSnapshot(e.data.requestId || null);
+            return;
+          }
+          if (e.data.type !== ACTION_MSG) return;
+          var requestId = e.data.requestId || null;
+          try {
+            var result;
+            if (e.data.action === "describe_elements") {
+              result = describeElements();
+            } else if (e.data.action === "describe_dom") {
+              result = describeDom();
+            } else if (e.data.action === "click_element") {
+              result = clickElement(e.data.elementId);
+            } else if (e.data.action === "click_sequence") {
+              result = clickElementSequence(
+                e.data.steps,
+                e.data.elementIds,
+                e.data.intervalMs,
+                e.data.actionRunId,
+              );
+            } else if (e.data.action === "drag_element") {
+              result = dragElement(
+                e.data.elementId,
+                e.data.targetElementId,
+                e.data.deltaX,
+                e.data.deltaY,
+                e.data.durationMs,
+              );
+            } else if (e.data.action === "scroll_element") {
+              result = scrollElement(
+                e.data.elementId,
+                e.data.scrollX,
+                e.data.scrollY,
+              );
+            } else if (e.data.action === "type_text") {
+              result = typeText(e.data.elementId, e.data.text);
+            } else if (e.data.action === "press_key") {
+              result = pressKeys(e.data.keys, e.data.elementId);
+            } else {
+              postActionResult(requestId, false, {
+                code: "UI_ACTION_UNKNOWN_ACTION",
+                error: "Unknown card action.",
+              });
+              return;
+            }
+            Promise.resolve(result).then(
+              function (value) {
+                postActionResult(requestId, true, { result: value });
+              },
+              function (err) {
+                postActionResult(requestId, false, {
+                  code: err && err.code ? err.code : "UI_ACTION_CARD_FAILED",
+                  error:
+                    err && err.message
+                      ? err.message
+                      : "Interactive card action failed.",
+                  result:
+                    err && err.result && typeof err.result === "object"
+                      ? err.result
+                      : undefined,
+                });
+              },
+            );
+          } catch (err) {
+            postActionResult(requestId, false, {
+              code: err && err.code ? err.code : "UI_ACTION_CARD_FAILED",
+              error:
+                err && err.message
+                  ? err.message
+                  : "Interactive card action failed.",
+            });
+          }
+        });
+        // 制度标记由宿主推来，但那次推送发生在画框看到 load 的一刻，和"这份文档存在"
+        // 是两件事：文档被重新加载、或者被收养进另一个窗口时重建，推送就落在它出生之前，
+        // 卡片永远等不到答案，该铺满画框的卡于是缩成一团。所以这里反过来由卡片开口问一次：
+        // 监听器已经挂好，问完就等答复。文档每次重来都会重新问，任何时序都能对上，
+        // 不需要任何一端猜另一端到了哪一步。
+        //
+        // 只问一次还不够稳：宿主那边也可能刚开始搭监听，这份文档偏偏又加载得极快，
+        // 于是唯一的那句话喊进了空屋子，卡片就永远停在默认制度上。所以没被答复就再问
+        // 几次，间隔逐次拉长。收到答复即停，问完这几次也停——没人会来答的卡片不该为此
+        // 养一个长住的定时器。
+        var sizingAnswered = false;
+        var sizingRetryDelays = [100, 300, 1000];
+        var sizingRetryIndex = 0;
+        function askSizingMode() {
+          if (sizingAnswered) return;
+          window.parent.postMessage({ type: SIZING_REQUEST_MSG }, "*");
+          if (sizingRetryIndex >= sizingRetryDelays.length) return;
+          var delay = sizingRetryDelays[sizingRetryIndex];
+          sizingRetryIndex += 1;
+          window.setTimeout(askSizingMode, delay);
+        }
+        askSizingMode();
+      })();
+    </script>
+  </head>
+  <body>
+    <!-- hana-card-fragment-begin -->
+    <script type="application/json" data-card-manifest>
+      {
+        "spec": "1.0",
+        "toolBindings": {
+          "opt": {
+            "tool": "rules-injector_option_choose",
+            "input": {},
+            "slots": ["cardId", "choice", "mode"]
+          },
+          "skip": {
+            "tool": "rules-injector_option_choose",
+            "input": {},
+            "slots": ["cardId", "choice", "mode"]
+          },
+          "custom": {
+            "tool": "rules-injector_option_choose",
+            "input": {},
+            "slots": ["cardId", "choice", "mode"]
+          }
+        }
+      }
+    </script>
+    <h2
+      style="
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+      "
+    >
+      选项卡片
+    </h2>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: var(--font-serif, "Noto Serif SC", serif);
+        background: transparent;
+        padding: 0;
+      }
+      .oc-card {
+        background: transparent;
+        border: none; /* 宿主 webview 容器自带描边，不再自画，避免双线重叠 */
+        border-radius: var(--radius-chat-card, 4px);
+        padding: 16px 18px 12px;
+      }
+      .oc-q {
+        font-size: 18px;
+        font-weight: 500;
+        line-height: 1.5;
+        color: var(--text, #2a2622);
+        margin-bottom: 14px;
+      }
+      .oc-status {
+        margin-top: 14px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 16px;
+        font-family: var(--font-ui, system-ui, sans-serif);
+        font-size: 12px;
+        color: var(--text-muted, #6b6158);
+      }
+      .oc-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--border, #d8cfbe);
+        flex: none;
+      }
+      .oc-status.busy {
+        color: var(--text-light, #4a433c);
+      }
+      .oc-status.busy .oc-dot {
+        background: var(--accent, #537d96);
+      }
+      .oc-status.ok {
+        color: var(--green, #4a6b4a);
+      }
+      .oc-status.ok .oc-dot {
+        background: var(--green, #4a6b4a);
+      }
+      .oc-status.err {
+        color: var(--danger, #8b2c1f);
+      }
+      .oc-status.err .oc-dot {
+        background: var(--danger, #8b2c1f);
+      }
+
+      /* ── 竖排：目录列表 ── */
+      .oc-card.oc-layout-v .oc-list {
+        display: flex;
+        flex-direction: column;
+      }
+      .oc-card.oc-layout-v .oc-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        width: 100%;
+        padding: 13px 18px;
+        background: transparent;
+        border: none;
+        border-left: 2px solid transparent;
+        border-bottom: 0.5px solid var(--border, #d8cfbe);
+        border-radius: 0;
+        font-family: var(--font-ui, system-ui, sans-serif);
+        font-size: 13.5px;
+        font-weight: 500;
+        text-align: left;
+        color: var(--text, #2a2622);
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease;
+      }
+      .oc-card.oc-layout-v .oc-list .oc-row:last-child {
+        border-bottom: none;
+      }
+      .oc-card.oc-layout-v .oc-row:hover {
+        background: var(--accent-light, rgba(83, 125, 150, 0.08));
+      }
+      .oc-card.oc-layout-v .oc-row:disabled {
+        cursor: default;
+      }
+      .oc-card.oc-layout-v .oc-row.oc-picked {
+        background: var(--accent-light, rgba(83, 125, 150, 0.08));
+        border-left-color: var(--accent, #537d96);
+        color: var(--accent-hover, #3f6179);
+      }
+      .oc-card.oc-layout-v .oc-row:not(.oc-picked):disabled {
+        opacity: 0.35;
+      }
+      .oc-card.oc-layout-v .oc-idx {
+        font-family: var(--font-mono, ui-monospace, monospace);
+        font-size: 11px;
+        color: var(--text-muted, #6b6158);
+        min-width: 20px;
+        flex: none;
+      }
+      .oc-card.oc-layout-v .oc-label {
+        flex: 1 1 auto;
+        min-width: 0;
+        word-break: break-word;
+      }
+      .oc-card.oc-layout-v .oc-arrow {
+        width: 13px;
+        height: 13px;
+        color: var(--text-muted, #6b6158);
+        flex: none;
+        transition: color 0.15s ease;
+      }
+      .oc-card.oc-layout-v .oc-row:hover .oc-arrow,
+      .oc-card.oc-layout-v .oc-row.oc-picked .oc-arrow {
+        color: var(--accent, #537d96);
+      }
+
+      /* ── 次级入口：自定义输入 / 跳过 ── */
+      .oc-extras {
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 0.5px solid var(--border, #d8cfbe);
+      }
+      .oc-extra {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        background: transparent;
+        border: none;
+        padding: 10px 4px;
+        font-family: var(--font-ui, system-ui, sans-serif);
+        font-size: 28px;
+        font-weight: 500;
+        color: var(--text-muted, #6b6158);
+        cursor: pointer;
+        transition: color 0.15s ease;
+      }
+      .oc-extra:hover {
+        color: var(--accent, #537d96);
+      }
+      .oc-extra:disabled {
+        cursor: default;
+        opacity: 0.4;
+      }
+      .oc-extra svg {
+        width: 28px;
+        height: 28px;
+        flex: none;
+      }
+      #oc-skip-btn {
+        flex: none;
+        font-family: var(--font-ui, system-ui, sans-serif);
+        font-size: 14px;
+        font-weight: 500;
+        color: #fff7ee;
+        background: var(--danger, #c0392b);
+        border: none;
+        border-radius: 8px;
+        padding: 8px 18px;
+        cursor: pointer;
+        transition: opacity 0.15s ease;
+      }
+      #oc-skip-btn:hover {
+        opacity: 0.85;
+      }
+      #oc-skip-btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      /* id 选择器特异性高于 .oc-fb，需 id+class 双选器才能盖过按钮底色 */
+      #oc-custom-send.oc-fb,
+      #oc-skip-btn.oc-fb {
+        flex: none;
+        font-family: var(--font-ui, system-ui, sans-serif);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--green, #4a6b4a);
+        background: transparent;
+        border: none;
+        padding: 8px 4px;
+        cursor: default;
+      }
+      .oc-custom {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 0.5px solid var(--border, #d8cfbe);
+      }
+      .oc-custom-row {
+        display: flex;
+        gap: 8px;
+      }
+      .oc-custom-input {
+        flex: 1;
+        min-width: 0;
+        font-family: var(--font-ui, system-ui, sans-serif);
+        font-size: 14px;
+        color: var(--text, #2a2622);
+        background: transparent;
+        border: 0.5px solid var(--border, #d8cfbe);
+        border-radius: var(--radius-chat-card, 4px);
+        padding: 11px 14px;
+        outline: none;
+        transition: border-color 0.15s ease;
+      }
+      .oc-custom-input:focus {
+        border-color: var(--accent, #537d96);
+      }
+      .oc-custom-input::placeholder {
+        color: var(--text-muted, #6b6158);
+      }
+      .oc-custom-send {
+        flex: none;
+        font-family: var(--font-ui, system-ui, sans-serif);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--bg-card, #fbf7ee);
+        background: var(--accent, #537d96);
+        border: none;
+        border-radius: 8px;
+        padding: 8px 18px;
+        cursor: pointer;
+        transition: opacity 0.15s ease;
+      }
+      .oc-custom-send:hover {
+        opacity: 0.85;
+      }
+      .oc-custom-send:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+
+      input:focus,
+      textarea:focus,
+      button:focus {
+        outline: none;
+      }
+    </style>
+    <div class="oc-card oc-layout-v">
+      <div class="oc-q" id="oc-q"></div>
+      <div class="oc-list" id="oc-list"></div>
+      <div class="oc-custom">
+        <div class="oc-custom-row">
+          <input
+            class="oc-custom-input"
+            id="oc-custom-input"
+            type="text"
+            maxlength="200"
+            placeholder="输入你的答案…"
+            aria-label="自定义答案"
+          />
+        </div>
+      </div>
+      <div class="oc-extras">
+        <button class="oc-custom-send" id="oc-custom-send">发送</button>
+        <button class="oc-extra" id="oc-skip-btn" aria-label="跳过">
+          跳过
+        </button>
+      </div>
+      <div id="oc-status" class="oc-status" style="display: none">
+        <span class="oc-dot"></span><span id="oc-status-text"></span>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var ARROW_SVG =
+          '<svg class="oc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
+        var statusEl = document.getElementById("oc-status");
+        var statusText = document.getElementById("oc-status-text");
+        var questionEl = document.getElementById("oc-q");
+        var listEl = document.getElementById("oc-list");
+        var customInput = document.getElementById("oc-custom-input");
+        var skipBtn = document.getElementById("oc-skip-btn");
+        var sendBtn = document.getElementById("oc-custom-send");
+        var picked = false;
+        var cardId = "";
+        var options = [];
+
+        // 状态读取：模板内嵌 data-card-state 为默认值（独立打开也可展示）；
+        // 宿主铸造时经 show_card(template, state) 注入的状态由 window.card.state.get() 提供，
+        // 两者同构（{cardId, question, options}），后者覆盖前者。
+        function readEmbeddedState() {
+          var node = document.querySelector(
+            'script[type="application/json"][data-card-state]',
+          );
+          if (!node) return {};
+          try {
+            var parsed = JSON.parse(node.textContent || "");
+            return parsed &&
+              typeof parsed === "object" &&
+              !Array.isArray(parsed)
+              ? parsed
+              : {};
+          } catch (_) {
+            return {};
+          }
+        }
+        function normalizeOptions(source) {
+          var out = [];
+          if (Object.prototype.toString.call(source) !== "[object Array]")
+            return out;
+          for (var i = 0; i < source.length; i += 1) {
+            var text = typeof source[i] === "string" ? source[i].trim() : "";
+            if (text) out.push(text);
+          }
+          return out;
+        }
+        function applyState(source) {
+          if (!source || typeof source !== "object") return;
+          if (typeof source.cardId === "string") cardId = source.cardId;
+          if (typeof source.question === "string")
+            questionEl.textContent = source.question;
+          if (source.options !== undefined)
+            options = normalizeOptions(source.options);
+        }
+        function setStatus(text, cls) {
+          statusEl.style.display = "flex";
+          statusText.textContent = text;
+          statusEl.className = "oc-status" + (cls ? " " + cls : "");
+        }
+        function lockAll() {
+          document.querySelectorAll(".oc-row").forEach(function (b) {
+            b.disabled = true;
+          });
+          skipBtn.disabled = true;
+          sendBtn.disabled = true;
+          customInput.disabled = true;
+        }
+        function unlockAll() {
+          document.querySelectorAll(".oc-row").forEach(function (b) {
+            b.disabled = false;
+          });
+          skipBtn.disabled = false;
+          sendBtn.disabled = false;
+          customInput.disabled = false;
+        }
+
+        // 反馈策略：正常路径反馈文本顶掉触发按钮（零新增高度）；错误路径显示底部状态条 oc-status.err。
+        // 消费闸门（已消费幂等）在 option_choose 侧，此处只按 invoke 返回 ok 判定成功。
+        // manifest 三个 binding（opt/skip/custom）的 input 均为空对象，cardId/choice/mode
+        // 全部经 slots 运行时传入——这里不再写死任何固定参数。
+        function submit(bindingId, value, mode, fbLabel) {
+          if (picked) return;
+          picked = true;
+          lockAll();
+          if (fbLabel) {
+            fbLabel.textContent = "正在发送…";
+            statusEl.style.display = "none";
+            if (fbLabel === sendBtn || fbLabel === skipBtn) {
+              fbLabel.classList.add("oc-fb");
+              (fbLabel === sendBtn ? skipBtn : sendBtn).style.display = "none";
+            }
+          }
+          if (!window.card || typeof window.card.invoke !== "function") {
+            if (fbLabel) fbLabel.textContent = "发送失败";
+            setStatus("发送失败：交互桥不可用", "err");
+            return;
+          }
+          // 先入 Promise 再调 invoke：同步抛错也落入 catch，统一按失败信封/异常处理
+          Promise.resolve()
+            .then(function () {
+              return window.card.invoke(bindingId, {
+                cardId: cardId,
+                choice: value,
+                mode: mode,
+              });
+            })
+            .then(function (data) {
+              if (data && data.ok) {
+                if (fbLabel)
+                  fbLabel.textContent =
+                    mode === "skip" ? "已跳过" : "已发送 · " + value;
+              } else {
+                if (fbLabel) fbLabel.textContent = "发送失败";
+                setStatus(
+                  "发送失败：" +
+                    ((data && (data.error || data.code)) || "unknown"),
+                  "err",
+                );
+              }
+            })
+            .catch(function (e) {
+              if (fbLabel) fbLabel.textContent = "发送失败";
+              setStatus(
+                "发送失败：" + (e && e.message ? e.message : String(e)),
+                "err",
+              );
+            });
+        }
+        function buildRow(text, index) {
+          var row = document.createElement("button");
+          row.type = "button";
+          row.className = "oc-row";
+          row.setAttribute("aria-label", "选择 " + text);
+          var idx = document.createElement("span");
+          idx.className = "oc-idx";
+          idx.textContent = String(index + 1).padStart(2, "0");
+          var label = document.createElement("span");
+          label.className = "oc-label";
+          label.textContent = text;
+          row.appendChild(idx);
+          row.appendChild(label);
+          row.insertAdjacentHTML("beforeend", ARROW_SVG);
+          row.addEventListener("click", function () {
+            if (picked) return;
+            row.classList.add("oc-picked");
+            submit("opt", text, "option", label);
+          });
+          return row;
+        }
+        function render() {
+          if (picked) return;
+          while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+          for (var i = 0; i < options.length; i += 1)
+            listEl.appendChild(buildRow(options[i], i));
+          // cardId 为空：模板被独立打开 / 尚未被宿主以真实状态铸造——按钮禁用并提示
+          if (!cardId) {
+            lockAll();
+            setStatus("卡片尚未绑定宿主，无法发送选择", "");
+          } else {
+            unlockAll();
+            statusEl.style.display = "none";
+          }
+        }
+        sendBtn.addEventListener("click", function () {
+          if (picked) return;
+          var v = customInput.value.trim();
+          if (!v) return;
+          submit("custom", v, "custom", sendBtn);
+        });
+        customInput.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            sendBtn.click();
+          }
+        });
+        skipBtn.addEventListener("click", function () {
+          if (picked) return;
+          submit("skip", "", "skip", skipBtn);
+        });
+
+        applyState(readEmbeddedState());
+        render();
+        var api = window.card;
+        if (api && api.state && typeof api.state.get === "function") {
+          api.state.get().then(
+            function (envelope) {
+              var result =
+                envelope && envelope.ok === true ? envelope.result : null;
+              var stored = result && result.state ? result.state : null;
+              if (stored && typeof stored === "object") applyState(stored);
+              render();
+            },
+            function () {
+              render();
+            },
+          );
+        }
+      })();
+    </script>
+    <!-- hana-card-fragment-end -->
+    <script data-hana-host-script="resource-placeholder">
+      (function () {
+        if (window.__cardPlaceholderInstalled) {
+          return;
+        }
+        window.__cardPlaceholderInstalled = true;
+
+        var MARKER = "data-card-placeholder";
+        var REASON = "This resource is no longer where it was";
+        var SVG_NS = "http://www.w3.org/2000/svg";
+        /* 到这个宽度以下，占位的是头像或图标一类的行内小图，说得越少越好。 */
+        var COMPACT_MAX_PX = 120;
+
+        var CSS = [
+          ".card-placeholder{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;",
+          "justify-content:center;gap:.35em;max-width:100%;min-width:2.5em;min-height:2.5em;padding:.75em;",
+          "border:1px solid var(--border,rgba(128,128,128,.35));border-radius:var(--radius-chat-card,8px);",
+          "background:var(--bg-well,rgba(128,128,128,.08));color:var(--text,inherit);text-align:center;overflow:hidden}",
+          ".card-placeholder--compact{gap:.2em;padding:.35em;border-radius:6px}",
+          ".card-placeholder__icon{width:28px;height:28px;flex:none;opacity:.55}",
+          ".card-placeholder--compact .card-placeholder__icon{width:18px;height:18px}",
+          ".card-placeholder__alt{font-size:.86rem;line-height:1.3}",
+          ".card-placeholder__reason{font-size:.72rem;line-height:1.3;opacity:.65;color:var(--text-muted,inherit)}",
+        ].join("");
+
+        function installStyle() {
+          if (document.getElementById("card-placeholder-style")) {
+            return;
+          }
+          var style = document.createElement("style");
+          style.id = "card-placeholder-style";
+          style.textContent = CSS;
+          (document.head || document.documentElement).appendChild(style);
+        }
+
+        function svg(name, attributes) {
+          var node = document.createElementNS(SVG_NS, name);
+          for (var key in attributes) {
+            if (Object.prototype.hasOwnProperty.call(attributes, key))
+              node.setAttribute(key, attributes[key]);
+          }
+          return node;
+        }
+
+        /* 画框 + 山 + 日：每个读者都认得的"这里本来有张图"。 */
+        function icon() {
+          var root = svg("svg", {
+            class: "card-placeholder__icon",
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            "stroke-width": "1.5",
+            "stroke-linecap": "round",
+            "stroke-linejoin": "round",
+            "aria-hidden": "true",
+          });
+          root.appendChild(
+            svg("rect", { x: "3", y: "5", width: "18", height: "14", rx: "2" }),
+          );
+          root.appendChild(
+            svg("path", { d: "M5 17.2l4.3-4.7 3.1 3.2L16 12l3 3.4" }),
+          );
+          root.appendChild(svg("circle", { cx: "9", cy: "9.4", r: "1.4" }));
+          return root;
+        }
+
+        function measure(node) {
+          var w = parseFloat(node.getAttribute("width"));
+          var h = parseFloat(node.getAttribute("height"));
+          var rect =
+            typeof node.getBoundingClientRect === "function"
+              ? node.getBoundingClientRect()
+              : null;
+          return {
+            width:
+              isFinite(w) && w > 0
+                ? w
+                : rect && rect.width > 1
+                  ? rect.width
+                  : 0,
+            height:
+              isFinite(h) && h > 0
+                ? h
+                : rect && rect.height > 1
+                  ? rect.height
+                  : 0,
+          };
+        }
+
+        function build(node) {
+          var size = measure(node);
+          var alt = node.getAttribute ? node.getAttribute("alt") || "" : "";
+          var compact = size.width > 0 && size.width <= COMPACT_MAX_PX;
+
+          var box = document.createElement("div");
+          box.setAttribute(MARKER, "");
+          box.setAttribute("role", "img");
+          box.className = compact
+            ? "card-placeholder card-placeholder--compact"
+            : "card-placeholder";
+          box.setAttribute("aria-label", alt ? alt + ". " + REASON : REASON);
+          if (size.width > 0) box.style.width = size.width + "px";
+          if (size.width > 0 && size.height > 0)
+            box.style.aspectRatio = size.width + " / " + size.height;
+          else if (size.height > 0) box.style.height = size.height + "px";
+
+          box.appendChild(icon());
+          if (alt) {
+            var altLine = document.createElement("span");
+            altLine.className = "card-placeholder__alt";
+            altLine.textContent = alt;
+            box.appendChild(altLine);
+          }
+          /* 小图位只在已经有 alt 顶着的时候省来由行；没有 alt 就什么都不剩了。 */
+          if (!compact || !alt) {
+            var reasonLine = document.createElement("span");
+            reasonLine.className = "card-placeholder__reason";
+            reasonLine.textContent = REASON;
+            box.appendChild(reasonLine);
+          }
+          return box;
+        }
+
+        function replace(node) {
+          if (!node || node.__cardPlaceholderDone || !node.parentNode) return;
+          node.__cardPlaceholderDone = true;
+          installStyle();
+          node.parentNode.replaceChild(build(node), node);
+        }
+
+        /* <picture> 里某个 <source> 失败不是读者看得见的失败：浏览器换下一个候选，
+     全都不行时由里面的 <img> 报出来。媒体元素里没有这个代言人，所以等浏览器
+     落定之后看一眼，确实一个可用源都没有才替换。 */
+        function considerSourceParent(parent) {
+          if (!parent || !parent.tagName) return;
+          var tag = parent.tagName.toUpperCase();
+          if (tag !== "VIDEO" && tag !== "AUDIO") return;
+          window.setTimeout(function () {
+            if (parent.networkState === parent.NETWORK_NO_SOURCE)
+              replace(parent);
+          }, 0);
+        }
+
+        window.addEventListener(
+          "error",
+          function (event) {
+            var node = event.target;
+            if (!node || node === window || !node.tagName) return;
+            var tag = node.tagName.toUpperCase();
+            if (tag === "IMG" || tag === "VIDEO" || tag === "AUDIO") {
+              replace(node);
+              return;
+            }
+            if (tag === "SOURCE") considerSourceParent(node.parentNode);
+          },
+          true,
+        );
+      })();
+    </script>
+    <script data-hana-host-script="resize-bridge">
+      (function () {
+        var NS = "hana.card-resize";
+        var last = 0;
+        function report() {
+          var h = document.documentElement.scrollHeight;
+          if (h !== last) {
+            last = h;
+            window.parent.postMessage({ type: NS, height: h }, "*");
+          }
+        }
+        if (document.readyState === "complete") report();
+        else window.addEventListener("load", report);
+        // 高度自适应是增强，不是运行前提。没有 ResizeObserver 的环境（老浏览器、
+        // 精简 webview）里这行会抛 ReferenceError——一张导出的卡片被双击打开时
+        // 不该因为一个宿主向的增强就往控制台扔未捕获异常。
+        if (typeof ResizeObserver === "function") {
+          new ResizeObserver(function () {
+            report();
+          }).observe(document.body);
+        }
+        // 响应宿主 ping，覆盖 ResizeObserver 首报被漏掉的竞态
+        window.addEventListener("message", function (e) {
+          if (e.data === "hana.card-ping") {
+            last = 0;
+            report();
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
