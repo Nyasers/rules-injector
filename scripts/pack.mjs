@@ -138,8 +138,9 @@ async function main() {
 
   const out = join(RELEASES_DIR, `rules-injector-${version}.zip`);
   const shaOut = `${out}.sha256`;
-  // const force = process.argv.includes("--force");
-  // if (existsSync(out) && !force) fail(`${out} 已存在，加 --force 覆盖（或先 bump 版本）`);
+  const force = process.argv.includes("--force");
+  if ((existsSync(out) || existsSync(shaOut)) && !force)
+    fail(`${out} 已存在（或摘要已存在），加 --force 覆盖（或先 bump 版本）`);
 
   // 1. 构建 bundle（rspack，产物 dist/）
   console.log("[pack] build...");

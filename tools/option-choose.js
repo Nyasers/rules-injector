@@ -64,6 +64,7 @@ export async function execute(input, ctx) {
   });
   if (!r.ok) {
     return {
+      isError: true,
       content: [{ type: "text", text: `回传失败：${r.error || "unknown"}` }],
       details: { option_choose: { cardId, mode, ok: false, error: r.error } },
     };

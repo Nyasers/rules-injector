@@ -215,7 +215,7 @@ export default class RulesInjectorPlugin {
     const unsub = bus.subscribe((ev, ssp) => {
       if (ev?.type === "session_created") {
         const session = ev.session || {};
-        const sp = ssp || session.path || session.sessionPath;
+        const sp = ssp || ev.sessionPath || ev.payload?.session?.sessionPath || session.path || session.sessionPath;
         if (!sp) return;
         // 兼容宿主两种 emit 形态：核心 createSession 路径 sessionId 在事件顶层，
         // session:create bus handler / REST 路由在 session 对象内（含 payload 包装）

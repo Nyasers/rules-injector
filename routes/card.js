@@ -695,8 +695,10 @@ export default function (app, ctx) {
     }
     // 0.10.1：回传逻辑收敛到 lib/option-submit.js（route 与交互卡 binding 共用）
     const r = await submitOption(ctx, body || {});
-    if (!r.ok)
-      return c.json({ ok: false, error: r.error, code: r.code || null }, 500);
+    if (!r.ok) {
+      const status = r.code === "validation_error" ? 400 : 500;
+      return c.json({ ok: false, error: r.error, code: r.code || null }, status);
+    }
     return c.json({ ok: true });
   });
 }
