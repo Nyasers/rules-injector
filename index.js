@@ -7,7 +7,8 @@
 //   宿主 server bundle kY() 投递构造器当前硬编码 display:!1（0.446.6 验证），
 //   meta.display 暂不消费，属能力预留；宿主支持后注入消息将按意图显隐。
 // 注入时机：
-//   1. session_created —— 新会话全量注入当前规则清单（清单标识 = 内容指纹）
+//   1. session_created —— 新会话全量注入当前规则清单（清单标识 = 内容指纹）；
+//      兼容宿主两种 emit 形态（顶层 sessionId / session 对象内 sessionId）
 //   2. session_user_message —— 用户消息提交时一次性检查：读最新状态算指纹，与已注入指纹对比，
 //      实质变化才注入最新清单（旧实现：rules-state.json 变化时立即重注入，连续多次状态变化会
 //      产生多条中间态投递，全部进入上下文；现改为状态变化只更新状态文件，用户消息前合并为一次投递）
@@ -25,8 +26,11 @@
 //   撞宿主 deferred store 的 _tasks 幂等（defer 静默跳过 + resolve 只投 pending），投递被吞且记录误写。
 //
 // 机制依据（宿主 bundle 0.446.6 验证）：
-// - session_created 事件：createSession 完成时 emit，payload 带 session 对象，
-//   bus.subscribe 回调第二参为 sessionPath（恢复旧会话不触发，天然防重复）
+// - session_created 事件：存在两种 emit 形态——核心 createSession 路径在事件顶层带
+//   sessionId/sessionPath/agentId；session:create bus handler / REST 路由在 session 对象内
+//   携带（payload 亦可能再包一层 session）。bus.subscribe 回调第二参为 sessionPath
+//   （恢复旧会话不触发，天然防重复）；事件未带 sessionId 时异步 session:get 反查后再注入，
+//   保证同一会话键收敛（原生 sessionId 优先，反查失败才落派生键）
 // - session_user_message 事件：用户提交消息时 emit（desktop-session-submit 与 bridge 两条路径
 //   均发，payload 带 clientMessageId/message，第二参为 sessionPath），早于 turn 的 prompt 组装，
 //   是「用户消息提交时一次性检查」的挂载点。事件本身不含 sessionId，需 session:get 反查
@@ -213,9 +217,18 @@ export default class RulesInjectorPlugin {
         const session = ev.session || {};
         const sp = ssp || session.path || session.sessionPath;
         if (!sp) return;
-        const sid = session.sessionId || session.sessionRef?.sessionId || null;
-        if (sid) sessionIdCache.set(sp, sid); // 缓存原生 sessionId，供 session_user_message 同步取用
-        doInject(sp, sid, false);
+        // 兼容宿主两种 emit 形态：核心 createSession 路径 sessionId 在事件顶层，
+        // session:create bus handler / REST 路由在 session 对象内（含 payload 包装）
+        const sid = ev.sessionId || ev.session?.sessionId || ev.session?.sessionRef?.sessionId || ev.payload?.session?.sessionId || null;
+        if (sid) {
+          sessionIdCache.set(sp, sid); // 缓存原生 sessionId，供 session_user_message 同步取用
+          doInject(sp, sid, false);
+        } else {
+          // 事件未携带 sessionId：异步 session:get 反查后再注入（与 session_user_message 兜底一致），
+          // 保证同一会话永远收敛到同一 key——原生 sessionId 优先，反查也失败才落派生键
+          // （此时两条路径都用派生键，key 依然一致）
+          resolveSessionId(sp).then((s2) => doInject(sp, s2, false));
+        }
         return;
       }
       // 用户消息提交时一次性检查：读最新状态算指纹，与已注入指纹对比（判据锚点在「即将注入」），
