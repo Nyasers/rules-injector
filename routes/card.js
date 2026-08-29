@@ -8,6 +8,8 @@
 // POST /card/choose 接收点击/输入/跳过，优先以库中 q/p 构造回传文本，经 deferred 通道投递为
 // 后台事件（custom_message，display:false 模型可见界面隐身）并触发父回合唤醒 agent；
 // resolve 成功后在库中标记消费（UPDATE ... WHERE ts IS NULL 条件更新，幂等防重）。
+// 严格模式（不传 allowLegacy）：空/未知 cardId 一律 400 拒绝，不接受 legacy 参数投递
+// （防攻击者构造 body {question, sessionPath} 向任意会话投递任意内容；受信工具入口见 lib/option-submit.js）。
 // busy 由宿主托管（30s 补投，点击一次必达）；register/resolve 失败直接报错（方案 B，不降级）。
 const TTL_MS = 24 * 60 * 60 * 1000;
 import { StateDb } from "../lib/db.js";
@@ -693,7 +695,8 @@ export default function (app, ctx) {
     } catch {
       return c.json({ ok: false, error: "invalid json" }, 400);
     }
-    // 0.10.1：回传逻辑收敛到 lib/option-submit.js（route 与交互卡 binding 共用）
+    // 0.10.1：回传逻辑收敛到 lib/option-submit.js（route 与交互卡 binding 共用）；
+    // 不传 opts → 严格模式：空/未知 cardId 由 submitOption 返回 validation_error → 400
     const r = await submitOption(ctx, body || {});
     if (!r.ok) {
       const status = r.code === "validation_error" ? 400 : 500;

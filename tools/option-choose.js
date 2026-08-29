@@ -55,13 +55,18 @@ export async function execute(input, ctx) {
 
   if (!cardId) throw new Error("缺少 cardId（来自 option-card 的返回值）");
 
-  const r = await submitOption(ctx, {
-    cardId,
-    choice,
-    mode,
-    question: input?.question,
-    sessionPath: ctx.sessionPath,
-  });
+  // 工具域受信：allowLegacy=true 保留 db 不可用/查无记录时的参数降级（HTTP 入口为严格模式，见 lib/option-submit.js）
+  const r = await submitOption(
+    ctx,
+    {
+      cardId,
+      choice,
+      mode,
+      question: input?.question,
+      sessionPath: ctx.sessionPath,
+    },
+    { allowLegacy: true },
+  );
   if (!r.ok) {
     return {
       isError: true,
