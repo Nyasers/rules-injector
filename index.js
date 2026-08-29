@@ -20,6 +20,9 @@
 //   （JSONL 追加写，每行 {"<sessionId>":"<hash>"} 单键；逆序读按 sessionId 取最新一条），
 //   与当前清单内容指纹对比，不同才推送、推完追加记录。插件重启后判据依然成立，
 //   已注入会话不会因重启而静默失效（内存 Map 仅作热防并发缓存）。
+//   判据键首次选定后固定：同一 sessionPath 首次注入时选定 key（原生 sessionId 优先，
+//   反查失败落派生键兜底也缓存），后续即使反查成功也不替换——防键漂移（反查失败用
+//   派生键注入、稍后反查成功换原生键）导致同内容二次注入与 injected_sessions 双记录。
 // taskId 角色：投递任务标识（宿主 deferred store 的键），只要求每次投递唯一，与内容指纹解耦。
 //   格式 ri-<sessionId>-<hash>-<ts>：sessionId 标识会话、hash 仅作可追溯信息、时间戳保证唯一。
 //   历史 bug（0.7.0）：taskId 曾用 ${key}-${hash}，hash 回退历史值时 taskId 复用，
@@ -150,11 +153,17 @@ export default class RulesInjectorPlugin {
     // 0.7.4：session_user_message 直接取缓存，消除 session:get 异步反查的约 10s 延迟
     // （0.7.3 中间态泄漏的根因：doInject 被反查延迟拖离消息提交时刻，快照落在开关拨动窗口内）。
     const sessionIdCache = new Map();
+    const sessionKeyCache = new Map(); // sessionPath -> 首次选定的判据键（稳定身份，派生键兜底也缓存，后续不替换）
 
     const doInject = async (sessionPath, sessionId, force) => {
       if (!db.ok) return; // db 不可用：注入停用
       // 判据锚点 =「即将注入」时刻的规则文件内容（实时读文件算指纹，无状态文件快照）
-      const key = sessionId || sessionKeyFor(sessionPath);
+      // 判据键首次选定后固定：sessionKeyCache 落定 sessionPath -> key（原生 sessionId 优先，
+      // 反查失败落派生键兜底也缓存，后续不替换）；sessionId 参数仅用于 injectViaDeferred
+      // 的会话定位，与判据键职责分离——防反查失败（派生键注入）后被后续反查成功的
+      // 原生 sessionId 顶替导致键漂移（同内容二次注入 + injected_sessions 双记录）。
+      const key = sessionKeyCache.get(sessionPath) || sessionId || sessionKeyFor(sessionPath);
+      if (!sessionKeyCache.has(sessionPath)) sessionKeyCache.set(sessionPath, key);
 
       // 全局总开关（meta global_enabled，'0' = 关闭；默认开启）：关闭期不推不记
       if (db.getMeta("global_enabled") === "0") return;
