@@ -10,7 +10,7 @@
 // 用法：
 //   node scripts/pack.mjs            # 打包 releases/rules-injector-<version>.zip + .sha256
 //   node scripts/pack.mjs --force    # 覆盖已存在的同版本包
-// 产出：releases/rules-injector-<version>.zip + .sha256（发布产物）；铺平目录 _tmp/pkg/（zip
+// 产出：releases/rules-injector-<version>.zip + .sha256（发布产物）；铺平目录 .tmp/pkg/（zip
 // 中间原料，可清空）。zip 内 posix 相对路径、无外层目录（保持既有形态），打包后自校验
 // 包内文件清单与 version 一致才认成功；原子写（tmp + rename、点前缀临时文件）。
 import { createRequire } from "node:module";
@@ -149,8 +149,8 @@ async function main() {
   const missing = PACKAGE_FILES.filter((f) => !existsSync(join(distDir, f)));
   if (missing.length > 0) fail(`清单文件缺失: ${missing.join(", ")}`);
 
-  // 3. dist → 铺平目录（zip 中间原料，放 _tmp 可随时清空）
-  const pkgDir = join(ROOT, "_tmp", "pkg", `rules-injector-v${version}`);
+  // 3. dist → 铺平目录（zip 中间原料，放 .tmp 可随时清空）
+  const pkgDir = join(ROOT, ".tmp", "pkg", `rules-injector-v${version}`);
   rmSync(pkgDir, { recursive: true, force: true });
   cpSync(distDir, pkgDir, { recursive: true });
 

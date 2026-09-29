@@ -5,7 +5,7 @@ dist/
 releases/
 
 # 临时文件（打包原子写临时文件 .*.tmp、本地验证产物等）
-_tmp/
+.tmp/
 
 # 系统杂项
 *.log
