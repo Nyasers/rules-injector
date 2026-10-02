@@ -8,9 +8,12 @@
 // POST /card/choose 接收点击/输入/跳过，优先以库中 q/p 构造回传文本，经 deferred 通道投递为
 // 后台事件（custom_message，display:false 模型可见界面隐身）并触发父回合唤醒 agent；
 // resolve 成功后在库中标记消费（UPDATE ... WHERE ts IS NULL 条件更新，幂等防重）。
+// 严格模式（不传 allowLegacy）：空/未知 cardId 一律 400 拒绝，不接受 legacy 参数投递
+// （防攻击者构造 body {question, sessionPath} 向任意会话投递任意内容；受信工具入口见 lib/option-submit.js）。
 // busy 由宿主托管（30s 补投，点击一次必达）；register/resolve 失败直接报错（方案 B，不降级）。
 const TTL_MS = 24 * 60 * 60 * 1000;
 import { StateDb } from "../lib/db.js";
+import { submitOption } from "../lib/option-submit.js";
 
 // db 懒单例（模块级，照 sidebar.js 模式；与 tools/index 各自持有实例，同一 data.db，SQLite 多连接安全）
 let _db = null;
@@ -23,7 +26,10 @@ function getDb(ctx) {
 }
 
 function esc(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
 }
 
 // 卡片样式（SSR 与降级壳共用）
@@ -211,17 +217,25 @@ const SIZE_REPORT_JS = `<script>
 // SSR 渲染：未消费可点卡片（薄 iframe 厚服务端，JS 只剩点击/反馈/锁定，无 hash 解析无 replaceState）
 function renderActive(hcLink, card) {
   let options;
-  try { options = JSON.parse(card.o); } catch { options = null; }
+  try {
+    options = JSON.parse(card.o);
+  } catch {
+    options = null;
+  }
   if (!Array.isArray(options) || options.length < 2 || options.length > 6) {
     return renderInvalid(hcLink, "卡片数据异常");
   }
   const layout = options.length > 3 ? "v" : "h";
-  const ARROW = '<svg class="oc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
-  const btnHtml = options.map((opt, i) =>
-    `<button class="oc-row" data-v="${esc(String(opt))}" aria-label="选择 ${esc(String(opt))}">` +
-    `<span class="oc-idx">${String(i + 1).padStart(2, "0")}</span>` +
-    `<span class="oc-label">${esc(String(opt))}</span>${ARROW}</button>`
-  ).join("");
+  const ARROW =
+    '<svg class="oc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
+  const btnHtml = options
+    .map(
+      (opt, i) =>
+        `<button class="oc-row" data-v="${esc(String(opt))}" aria-label="选择 ${esc(String(opt))}">` +
+        `<span class="oc-idx">${String(i + 1).padStart(2, "0")}</span>` +
+        `<span class="oc-label">${esc(String(opt))}</span>${ARROW}</button>`,
+    )
+    .join("");
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -363,13 +377,16 @@ ${hcLink}
 // 兜底：选项数据异常或 option 值匹配不到选项时，退化为纯状态行（q + 已发送/已跳过）。
 function renderConsumed(hcLink, card) {
   const q = card.q;
-  const mode = card.mode === "custom" || card.mode === "skip" ? card.mode : "option";
+  const mode =
+    card.mode === "custom" || card.mode === "skip" ? card.mode : "option";
   const value = typeof card.value === "string" ? card.value : "";
   let options = null;
   try {
     const o = JSON.parse(card.o);
     if (Array.isArray(o) && o.length >= 2 && o.length <= 6) options = o;
-  } catch { options = null; }
+  } catch {
+    options = null;
+  }
   const label = mode === "skip" ? "已跳过" : "已发送 · " + value;
 
   let bodyClass = "";
@@ -377,17 +394,22 @@ function renderConsumed(hcLink, card) {
   if (options && !(mode === "option" && !options.includes(value))) {
     const layout = options.length > 3 ? "v" : "h";
     bodyClass = ` class="oc-layout-${layout}${layout === "h" ? ` oc-cols-${options.length}` : ""}"`;
-    const ARROW = '<svg class="oc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
-    const rows = options.map((opt, i) => {
-      const picked = mode === "option" && opt === value;
-      const labelText = picked ? label : opt;
-      return `<button class="oc-row${picked ? " oc-picked" : ""}" disabled aria-label="${picked ? "已选择 " : "选择 "}${esc(opt)}">` +
-        `<span class="oc-idx">${String(i + 1).padStart(2, "0")}</span>` +
-        `<span class="oc-label">${esc(labelText)}</span>${ARROW}</button>`;
-    }).join("");
+    const ARROW =
+      '<svg class="oc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
+    const rows = options
+      .map((opt, i) => {
+        const picked = mode === "option" && opt === value;
+        const labelText = picked ? label : opt;
+        return (
+          `<button class="oc-row${picked ? " oc-picked" : ""}" disabled aria-label="${picked ? "已选择 " : "选择 "}${esc(opt)}">` +
+          `<span class="oc-idx">${String(i + 1).padStart(2, "0")}</span>` +
+          `<span class="oc-label">${esc(labelText)}</span>${ARROW}</button>`
+        );
+      })
+      .join("");
     const customVal = mode === "custom" ? ` value="${esc(value)}"` : "";
-    const sendHide = mode === "skip" ? " style=\"display:none\"" : "";
-    const skipHide = mode === "custom" ? " style=\"display:none\"" : "";
+    const sendHide = mode === "skip" ? ' style="display:none"' : "";
+    const skipHide = mode === "custom" ? ' style="display:none"' : "";
     bodyInner = `<div class="oc-card">
   <div class="oc-q">${esc(q)}</div>
   <div class="oc-list">${rows}</div>
@@ -644,7 +666,9 @@ ${hcLink}
 export default function (app, ctx) {
   app.get("/card", async (c) => {
     const hanaCss = c.req.query("hana-css") || "";
-    const hcLink = hanaCss ? `<link rel="stylesheet" href="${esc(hanaCss)}">` : "";
+    const hcLink = hanaCss
+      ? `<link rel="stylesheet" href="${esc(hanaCss)}">`
+      : "";
     const cardId = (c.req.query("id") || "").trim();
 
     // 无 id → 降级壳（旧卡片 hash 自包含）；hash 不随 HTTP 请求发送，服务端拿不到，只能靠 query
@@ -652,9 +676,14 @@ export default function (app, ctx) {
 
     // 有 id → SSR：查库渲染（薄 iframe 厚服务端）
     let card = null;
-    try { card = getDb(ctx).getCard(cardId); } catch { card = null; } // db 不可用
+    try {
+      card = getDb(ctx).getCard(cardId);
+    } catch {
+      card = null;
+    } // db 不可用
     if (!card) return c.html(renderInvalid(hcLink, "卡片不存在或已失效"));
-    if (Date.now() - card.c > TTL_MS) return c.html(renderInvalid(hcLink, "卡片已失效"));
+    if (Date.now() - card.c > TTL_MS)
+      return c.html(renderInvalid(hcLink, "卡片已失效"));
     if (card.ts != null) return c.html(renderConsumed(hcLink, card));
     return c.html(renderActive(hcLink, card));
   });
@@ -666,56 +695,13 @@ export default function (app, ctx) {
     } catch {
       return c.json({ ok: false, error: "invalid json" }, 400);
     }
-    const { cardId, choice, mode, question, sessionPath } = body || {};
-    const m = mode === "custom" || mode === "skip" ? mode : "option";
-
-    // 优先库中数据（权威）：q 构造回传文本、p 定位会话；库无记录（旧卡片/查无）回退 body 字段
-    let q = "", p = "";
-    if (typeof cardId === "string" && cardId) {
-      try {
-        const card = getDb(ctx).getCard(cardId);
-        if (card) { q = card.q; p = card.p || ""; }
-      } catch { /* db 不可用 */ }
+    // 0.10.1：回传逻辑收敛到 lib/option-submit.js（route 与交互卡 binding 共用）；
+    // 不传 opts → 严格模式：空/未知 cardId 由 submitOption 返回 validation_error → 400
+    const r = await submitOption(ctx, body || {});
+    if (!r.ok) {
+      const status = r.code === "validation_error" ? 400 : 500;
+      return c.json({ ok: false, error: r.error, code: r.code || null }, status);
     }
-    if (!q) q = typeof question === "string" && question.trim() ? question.trim().slice(0, 200) : "";
-    if (!q) {
-      return c.json({ ok: false, error: "question is required" }, 400);
-    }
-    if ((m === "option" || m === "custom") && (typeof choice !== "string" || !choice.trim())) {
-      return c.json({ ok: false, error: "choice is required for this mode" }, 400);
-    }
-    const sp = p || (typeof sessionPath === "string" && sessionPath ? sessionPath : undefined);
-    // 0.8.11：回传 Markdown 化（deferred 通道支持 md 渲染）。大标题立身份（# 选项卡片）+ 两个小标题下放正文
-    // （## 问题 / ## 回答）。选项与自定义同为文本回答，回答正文直接放内容不加前缀；跳过保留短语区分。
-    const text = m === "skip"
-      ? `# 选项卡片\n\n## 问题\n${q}\n\n## 回答\n跳过，不做选择`
-      : `# 选项卡片\n\n## 问题\n${q}\n\n## 回答\n${choice.trim()}`;
-    try {
-      // 回传走 deferred 通道（0.8.10）：register（trigger_parent_turn 唤醒父回合）+ resolve（result=回传文本）。
-      // 宿主投递为 display:false custom_message（模型可见、界面隐身），不伪造用户消息；
-      // busy 由宿主托管（30s 补投，点击一次必达），不自研重试。register/resolve 失败直接报错
-      // （方案 B，与规则注入同策略：插件依赖 deferred，不支持时功能不可用）。
-      const taskId = `oc-${cardId || "legacy"}-${Date.now().toString(36)}`;
-      const reg = await ctx.bus.request("deferred:register", {
-        taskId,
-        sessionPath: sp,
-        meta: {
-          type: "rules-injector",
-          label: "选项卡片回传",
-          deliveryIntent: "trigger_parent_turn",
-        },
-      });
-      if (!reg || reg.ok !== true) throw new Error(reg?.error || "deferred:register failed");
-      await ctx.bus.request("deferred:resolve", { taskId, result: text });
-      // resolve 成功后落库消费（条件更新 WHERE ts IS NULL，已消费忽略；db 不可用静默降级）
-      if (typeof cardId === "string" && cardId) {
-        try {
-          getDb(ctx).markCardConsumed(cardId, m === "skip" ? "" : choice.trim(), m);
-        } catch { /* 忽略 */ }
-      }
-      return c.json({ ok: true });
-    } catch (err) {
-      return c.json({ ok: false, error: err.message, code: err.code || null }, 500);
-    }
+    return c.json({ ok: true });
   });
 }
