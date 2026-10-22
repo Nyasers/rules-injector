@@ -15,7 +15,7 @@
 #
 # 与 dsh-hanako 的差异（裁剪依据）:
 #   - 构建工具链统一 Node（与插件本体、姊妹插件 dsh-hanako 同一工具栈）：
-#     .nvmrc 钉 Node 24.18.0（setup-node node-version-file），构建期装 @rspack/core +
+#     .nvmrc 钉 Node 24.22.1（setup-node node-version-file），构建期装 @rspack/core +
 #     archiver 两个 devDependency（npm ci），两步构建：scripts/build.mjs rspack bundle
 #     （5 入口压缩，lib/ 内联进 bundle）+ scripts/pack.mjs archiver 纯 Node 生成 zip
 #     （含 PK 头/EOCD，防 tar 伪 zip）+ sha256；交付物零依赖由固定清单
@@ -48,7 +48,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
@@ -78,13 +78,13 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
 
-      # 构建工具链统一 Node：.nvmrc 钉 Node 24.18.0（对齐 dsh-hanako），npm ci
+      # 构建工具链统一 Node：.nvmrc 钉 Node 24.22.1（对齐 dsh-hanako），npm ci
       # 装 @rspack/core + archiver 两个 devDependency（构建契约）；npm run pack =
       # rspack bundle（build.mjs）→ archiver 打包（pack.mjs）两步；交付物零依赖由
       # 固定清单 PACKAGE_FILES 保证（package.json/lock/node_modules 不进包，lib/ 内联）
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -112,7 +112,7 @@ jobs:
           gh release upload "${{ github.ref_name }}" "$ZIP" "$ZIP.sha256" --clobber
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: rules-injector
           retention-days: 3
@@ -131,11 +131,11 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
 
       # 构建工具链统一 Node：verify 脚本 scripts/verify-zip.mjs 为纯 Node 标准库实现，
       # setup-node 提供 node 运行时（版本与 build 一致，node-version-file .nvmrc）
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .nvmrc
 
