@@ -7,7 +7,8 @@
 //   宿主 server bundle kY() 投递构造器当前硬编码 display:!1（0.446.6 验证），
 //   meta.display 暂不消费，属能力预留；宿主支持后注入消息将按意图显隐。
 // 注入时机：
-//   1. session_created —— 新会话全量注入当前规则清单（清单标识 = 内容指纹）
+//   1. session_created —— 新会话全量注入当前规则清单（清单标识 = 内容指纹）；
+//      兼容宿主两种 emit 形态（顶层 sessionId / session 对象内 sessionId）
 //   2. session_user_message —— 用户消息提交时一次性检查：读最新状态算指纹，与已注入指纹对比，
 //      实质变化才注入最新清单（旧实现：rules-state.json 变化时立即重注入，连续多次状态变化会
 //      产生多条中间态投递，全部进入上下文；现改为状态变化只更新状态文件，用户消息前合并为一次投递）
@@ -15,18 +16,29 @@
 // 清单标识即内容指纹（sha256 前 16 位）：内容未变化的重复操作（如重复关闭已关闭的规则）
 //   指纹不变、不重复推送；只有清单实质内容变化才换新指纹并重注入。
 //   （语义见 lib/rules-fs.js「规则清单与指纹」；判据实现见 lib/db.js）
-// 已注入判据：injected-sessions.jsonl 持久化每个会话最后成功注入的清单指纹
-//   （JSONL 追加写，每行 {"<sessionId>":"<hash>"} 单键；逆序读按 sessionId 取最新一条），
-//   与当前清单内容指纹对比，不同才推送、推完追加记录。插件重启后判据依然成立，
-//   已注入会话不会因重启而静默失效（内存 Map 仅作热防并发缓存）。
+// 已注入判据：data.db injected_sessions 持久化每个会话最后成功注入的清单指纹
+//   （upsert，每会话恒一条），与当前清单内容指纹对比，不同才推送、推完更新记录。
+//   插件重启后判据依然成立，已注入会话不会因重启而静默失效（sessionKeyCache 内存 Map
+//   仅作热防并发缓存）。
+//   判据键首次选定后固定：同一 sessionPath 首次注入时选定 key（原生 sessionId 优先，
+//   反查失败落派生键兜底也缓存），后续即使反查成功也不替换——防键漂移（反查失败用
+//   派生键注入、稍后反查成功换原生键）导致同内容二次注入与 injected_sessions 双记录。
+//   重载恢复：sessionKeyCache 是 onload 局部内存、插件重载后清空；重载后内存未命中时
+//   先查 data.db 中 sessionKeyFor(sessionPath) 派生键是否已有注入记录——有则复用派生键
+//   （历史键恢复），保证重载前后同一 sessionPath 的判据键一致；无记录才走原生 sessionId
+//   或派生键兜底。极端 edge（历史原生键 + 重载 + 反查失败落派生键再恢复）：不重复注入
+//   （键固定后判据命中），可能多一条历史记录，可接受。
 // taskId 角色：投递任务标识（宿主 deferred store 的键），只要求每次投递唯一，与内容指纹解耦。
 //   格式 ri-<sessionId>-<hash>-<ts>：sessionId 标识会话、hash 仅作可追溯信息、时间戳保证唯一。
 //   历史 bug（0.7.0）：taskId 曾用 ${key}-${hash}，hash 回退历史值时 taskId 复用，
 //   撞宿主 deferred store 的 _tasks 幂等（defer 静默跳过 + resolve 只投 pending），投递被吞且记录误写。
 //
 // 机制依据（宿主 bundle 0.446.6 验证）：
-// - session_created 事件：createSession 完成时 emit，payload 带 session 对象，
-//   bus.subscribe 回调第二参为 sessionPath（恢复旧会话不触发，天然防重复）
+// - session_created 事件：存在两种 emit 形态——核心 createSession 路径在事件顶层带
+//   sessionId/sessionPath/agentId；session:create bus handler / REST 路由在 session 对象内
+//   携带（payload 亦可能再包一层 session）。bus.subscribe 回调第二参为 sessionPath
+//   （恢复旧会话不触发，天然防重复）；事件未带 sessionId 时异步 session:get 反查后再注入，
+//   保证同一会话键收敛（原生 sessionId 优先，反查失败才落派生键）
 // - session_user_message 事件：用户提交消息时 emit（desktop-session-submit 与 bridge 两条路径
 //   均发，payload 带 clientMessageId/message，第二参为 sessionPath），早于 turn 的 prompt 组装，
 //   是「用户消息提交时一次性检查」的挂载点。事件本身不含 sessionId，需 session:get 反查
@@ -146,11 +158,26 @@ export default class RulesInjectorPlugin {
     // 0.7.4：session_user_message 直接取缓存，消除 session:get 异步反查的约 10s 延迟
     // （0.7.3 中间态泄漏的根因：doInject 被反查延迟拖离消息提交时刻，快照落在开关拨动窗口内）。
     const sessionIdCache = new Map();
+    const sessionKeyCache = new Map(); // sessionPath -> 首次选定的判据键（稳定身份，派生键兜底也缓存，后续不替换；重载后内存清空，由 data.db 派生键记录恢复）
 
     const doInject = async (sessionPath, sessionId, force) => {
       if (!db.ok) return; // db 不可用：注入停用
       // 判据锚点 =「即将注入」时刻的规则文件内容（实时读文件算指纹，无状态文件快照）
-      const key = sessionId || sessionKeyFor(sessionPath);
+      // 判据键首次选定后固定：sessionKeyCache 落定 sessionPath -> key（原生 sessionId 优先，
+      // 反查失败落派生键兜底也缓存，后续不替换）；sessionId 参数仅用于 injectViaDeferred
+      // 的会话定位，与判据键职责分离——防反查失败（派生键注入）后被后续反查成功的
+      // 原生 sessionId 顶替导致键漂移（同内容二次注入 + injected_sessions 双记录）。
+      // 重载恢复：sessionKeyCache 为 onload 局部内存、重载后清空；内存未命中时先查 data.db
+      // 中 sessionKeyFor(sessionPath) 派生键是否已有注入记录——有则复用派生键（历史用派生键
+      // 注入的会话重载后不漂回原生键），无记录才走原生 sessionId 或派生键兜底。极端 edge
+      // （历史原生键 + 重载 + 反查失败落派生键再恢复）：不重复注入（判据命中），可能多一条
+      // 历史记录，可接受。
+      const key =
+        sessionKeyCache.get(sessionPath) ||
+        (db.getFingerprint(sessionKeyFor(sessionPath)) != null ? sessionKeyFor(sessionPath) : null) ||
+        sessionId ||
+        sessionKeyFor(sessionPath);
+      if (!sessionKeyCache.has(sessionPath)) sessionKeyCache.set(sessionPath, key);
 
       // 全局总开关（meta global_enabled，'0' = 关闭；默认开启）：关闭期不推不记
       if (db.getMeta("global_enabled") === "0") return;
@@ -211,11 +238,20 @@ export default class RulesInjectorPlugin {
     const unsub = bus.subscribe((ev, ssp) => {
       if (ev?.type === "session_created") {
         const session = ev.session || {};
-        const sp = ssp || session.path || session.sessionPath;
+        const sp = ssp || ev.sessionPath || ev.payload?.session?.sessionPath || session.path || session.sessionPath;
         if (!sp) return;
-        const sid = session.sessionId || session.sessionRef?.sessionId || null;
-        if (sid) sessionIdCache.set(sp, sid); // 缓存原生 sessionId，供 session_user_message 同步取用
-        doInject(sp, sid, false);
+        // 兼容宿主两种 emit 形态：核心 createSession 路径 sessionId 在事件顶层，
+        // session:create bus handler / REST 路由在 session 对象内（含 payload 包装）
+        const sid = ev.sessionId || ev.session?.sessionId || ev.session?.sessionRef?.sessionId || ev.payload?.session?.sessionId || null;
+        if (sid) {
+          sessionIdCache.set(sp, sid); // 缓存原生 sessionId，供 session_user_message 同步取用
+          doInject(sp, sid, false);
+        } else {
+          // 事件未携带 sessionId：异步 session:get 反查后再注入（与 session_user_message 兜底一致），
+          // 保证同一会话永远收敛到同一 key——原生 sessionId 优先，反查也失败才落派生键
+          // （此时两条路径都用派生键，key 依然一致）
+          resolveSessionId(sp).then((s2) => doInject(sp, s2, false));
+        }
         return;
       }
       // 用户消息提交时一次性检查：读最新状态算指纹，与已注入指纹对比（判据锚点在「即将注入」），

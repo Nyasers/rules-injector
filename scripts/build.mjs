@@ -15,7 +15,14 @@
 // 声明），构建期 npm ci 即装 @rspack/core + archiver 两个包，无 RSPACK_ENV 式独立构建环境。
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
-import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, renameSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  readdirSync,
+  statSync,
+  renameSync,
+} from "node:fs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -28,14 +35,19 @@ function resolveRspackEntry(coreDir) {
   const dot = pkg.exports?.["."];
   let entry = null;
   if (typeof dot === "string") entry = dot;
-  else if (dot && typeof dot === "object") entry = dot.default ?? dot.import ?? dot.require;
+  else if (dot && typeof dot === "object")
+    entry = dot.default ?? dot.import ?? dot.require;
   if (!entry) entry = pkg.main ?? "dist/index.js";
   return join(coreDir, entry);
 }
 let rspackPkg;
 const envDir = process.env.RSPACK_ENV;
 if (envDir) {
-  rspackPkg = await import(pathToFileURL(resolveRspackEntry(join(envDir, "node_modules", "@rspack", "core"))).href);
+  rspackPkg = await import(
+    pathToFileURL(
+      resolveRspackEntry(join(envDir, "node_modules", "@rspack", "core")),
+    ).href
+  );
 } else {
   rspackPkg = await import("@rspack/core");
 }
@@ -50,9 +62,12 @@ const ENTRY_SPECS = [
   ["routes/card", "routes/card.js"],
   ["routes/sidebar", "routes/sidebar.js"],
   ["tools/option-card", "tools/option-card.js"],
+  ["tools/option-choose", "tools/option-choose.js"],
   ["cli", "cli.mjs"],
 ];
-const entries = Object.fromEntries(ENTRY_SPECS.map(([name, file]) => [name, join(ROOT, file)]));
+const entries = Object.fromEntries(
+  ENTRY_SPECS.map(([name, file]) => [name, join(ROOT, file)]),
+);
 
 // 构建前收集各入口源码的 file:// URL —— 构建后产物里出现的这些字面量要替换回
 // import.meta.url（rspack 会把 import.meta.url 静态化为源码绝对路径，分发到对方机器
@@ -90,8 +105,16 @@ await new Promise((resolvePromise, reject) => {
   compiler.run((err, stats) => {
     compiler.close(() => {});
     if (err) return reject(err);
-    if (stats?.hasErrors()) return reject(new Error(stats.toString({ errors: true })));
-    console.log(stats?.toString({ colors: true, chunks: false, modules: false, assets: true }));
+    if (stats?.hasErrors())
+      return reject(new Error(stats.toString({ errors: true })));
+    console.log(
+      stats?.toString({
+        colors: true,
+        chunks: false,
+        modules: false,
+        assets: true,
+      }),
+    );
     resolvePromise();
   });
 });
@@ -100,7 +123,8 @@ await new Promise((resolvePromise, reject) => {
 // （node cli.mjs <action>，skill 调用路径不断）→ 构建后改名
 const cliJs = join(ROOT, "dist", "cli.js");
 const cliMjs = join(ROOT, "dist", "cli.mjs");
-if (!existsSync(cliJs)) throw new Error(`构建产物缺失 dist/cli.js（entry "cli" 未输出）`);
+if (!existsSync(cliJs))
+  throw new Error(`构建产物缺失 dist/cli.js（entry "cli" 未输出）`);
 renameSync(cliJs, cliMjs);
 console.log("renamed dist/cli.js -> dist/cli.mjs");
 
